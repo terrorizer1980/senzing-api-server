@@ -223,6 +223,49 @@ public class JsonUtils {
   }
 
   /**
+   * Gets a double value from the specified {@link JsonObject} using the
+   * specified key.  If the specified key is missing or has a null value then
+   * <tt>null</tt> is returned, otherwise the {@link Double} value is
+   * returned.
+   *
+   * @param obj The {@link JsonObject} to get the value from.
+   *
+   * @param key The non-null {@link String} key for the value.
+   *
+   * @return The {@link Double} value for the key, or <tt>null</tt> if the
+   *         JSON value is <tt>null</tt> or missing.
+   */
+  public static Double getDouble(JsonObject obj, String key)
+  {
+    return getDouble(obj, key, null);
+  }
+
+  /**
+   * Gets a double value from the specified {@link JsonObject} using the
+   * specified key.  If the specified key is missing or has a null value then
+   * <tt>null</tt> is returned, otherwise the {@link Double} value is
+   * returned.
+   *
+   * @param obj The {@link JsonObject} to get the value from.
+   *
+   * @param key The non-null {@link String} key for the value.
+   *
+   * @param defaultValue The value to return if the key is missing or its
+   *                     value is <tt>null</tt>.
+   *
+   * @return The {@link Double} value for the key, or the specified default
+   *         value if the JSON value is <tt>null</tt> or missing.
+   */
+  public static Double getDouble(JsonObject obj,
+                                 String     key,
+                                 Double     defaultValue)
+  {
+    if (obj == null) return defaultValue;
+    if (!obj.containsKey(key)) return defaultValue;
+    return obj.isNull(key) ? defaultValue : obj.getJsonNumber(key).doubleValue();
+  }
+
+  /**
    * Gets a boolean value from the specified {@link JsonObject} using the
    * specified key.  If the specified key is missing or has a null value then
    * <tt>null</tt> is returned, otherwise the {@link Boolean} value is

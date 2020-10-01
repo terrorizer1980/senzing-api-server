@@ -1,0 +1,12 @@
+package {{packageName}};
+
+{{#each imports}}import {{.}};
+{{/each}}
+
+/**
+ * {{^description}}Enumerated values for {{name}}{{/description}}{{#description}}{{description}}{{/description}}
+ */
+public enum {{className}} {
+  {{#each values}}{{.}}{{#if @last}};{{else}},{{/if}}
+  {{/each}}
+}
