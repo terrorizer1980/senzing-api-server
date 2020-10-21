@@ -3,10 +3,7 @@ package com.senzing.api.client.generator.java;
 import com.github.jknack.handlebars.Context;
 import com.senzing.api.client.generator.ApiSpecification;
 import com.senzing.api.client.generator.LanguageAdapter;
-import com.senzing.api.client.generator.schema.AllOfDataType;
-import com.senzing.api.client.generator.schema.ApiDataType;
-import com.senzing.api.client.generator.schema.ObjectDataType;
-import com.senzing.api.client.generator.schema.ObjectProperty;
+import com.senzing.api.client.generator.schema.*;
 
 import java.util.*;
 
@@ -58,16 +55,22 @@ public class AllOfHandler extends ObjectHandler {
       throw new IllegalArgumentException(
           "Cannot have AllOfDataType with no composite types: " + dataType);
     }
-    ApiDataType extendsType = apiSpec.resolveDataType(compositeTypes.get(0));
-    String extendsName = langAdapter.getTypeName(extendsType);
 
-    Set<String> imports = new LinkedHashSet<>();
-    String extendsPkg = langAdapter.getModelPath(extendsType)
-        .replace('/', '.');
-    imports.add(extendsPkg + "." + extendsName);
+    Set<String> imports     = new LinkedHashSet<>();
 
-    Map<String, ObjectProperty> extendsProps
-        = apiSpec.getResolvedProperties(extendsType);
+    ApiDataType extendsType = null;
+    String      extendsName = null;
+    String      extendsPkg  = null;
+
+    if (compositeTypes.get(0) instanceof RefDataType) {
+      extendsType = apiSpec.resolveDataType(compositeTypes.get(0));
+      extendsName = langAdapter.getTypeName(extendsType);
+      extendsPkg  = langAdapter.getModelPath(extendsType).replace('/', '.');
+      imports.add(extendsPkg + "." + extendsName);
+    }
+
+    Map<String, ObjectProperty> extendsProps = (extendsType == null)
+        ? Collections.emptyMap() : apiSpec.getResolvedProperties(extendsType);
 
     Map<String, ObjectProperty> allProps
         = apiSpec.getResolvedProperties(allOfDataType);
@@ -85,11 +88,53 @@ public class AllOfHandler extends ObjectHandler {
 
     paramMap.put("extends", extendsName);
     paramMap.put("imports", imports);
-    paramMap.put("className", name);
     paramMap.put("packageName", pkg);
+    paramMap.put("className", name);
     paramMap.put("fullClassName", pkg + "." + name);
 
+    List<Map<String,String>> propertyMaps
+        = this.getPropertyParams(derivedProps.values(), langAdapter);
+    paramMap.put("props", propertyMaps);
+
     return Context.newContext(dataType).combine(paramMap);
+  }
+
+  /**
+   *
+   * @param dataType
+   * @param langAdapter
+   * @return
+   */
+  public List<ApiDataType> getAnonymousSubTypes(
+      ApiDataType      dataType,
+      LanguageAdapter  langAdapter)
+  {
+    ApiSpecification  apiSpec         = langAdapter.getApiSpecification();
+    AllOfDataType     allOfDataType   = (AllOfDataType) dataType;
+    List<ApiDataType> compositeTypes  = allOfDataType.getTypes();
+    List<ApiDataType> result          = new LinkedList<>();
+
+    ApiDataType                 extendsType   = null;
+    Map<String, ObjectProperty> extendsProps  = null;
+    if (compositeTypes.get(0) instanceof RefDataType) {
+      extendsType   = apiSpec.resolveDataType(compositeTypes.get(0));
+      extendsProps  = apiSpec.getResolvedProperties(extendsType);
+    }
+    if (extendsProps == null) extendsProps = Collections.emptyMap();
+
+    Map<String, ObjectProperty> allProps
+        = apiSpec.getResolvedProperties(allOfDataType);
+
+    Map<String, ObjectProperty> derivedProps = new LinkedHashMap<>(allProps);
+    derivedProps.keySet().removeAll(extendsProps.keySet());
+
+    for (ObjectProperty prop: derivedProps.values()) {
+      ApiDataType propType = prop.getDataType();
+      if (!this.isAnonymousSubType(propType)) continue;
+      result.add(propType);
+    }
+
+    return result;
   }
 
 }

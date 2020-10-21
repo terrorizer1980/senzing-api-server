@@ -65,6 +65,7 @@ public class LongDataType extends NumberDataType<Long> {
           "Not a valid definition for a LongDataType: " + typeValue);
     }
     LongDataType longType = new LongDataType(name);
+
     String format = JsonUtils.getString(jsonObject, "format");
     if (!"int64".equals(format)) {
       throw new IllegalArgumentException(

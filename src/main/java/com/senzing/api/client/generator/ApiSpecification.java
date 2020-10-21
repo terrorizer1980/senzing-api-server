@@ -12,6 +12,13 @@ import java.util.*;
  */
 public class ApiSpecification {
   /**
+   * The only allowed properties for an "any type" that might have additional
+   * description or allow null values.
+   */
+  private static final Set<String> ANY_TYPE_PROPS
+      = Set.of("nullable", "description");
+
+  /**
    * The list of {@link ApiDataType} instances describing the named types in
    * the schema.
    */
@@ -165,10 +172,12 @@ public class ApiSpecification {
       else if (oneOfArray != null) specType = "oneOf";
       else if (anyOfArray != null) specType = "anyOf";
       else if (ref != null) specType = "ref";
-      else if (schemaObj.size() == 0) {
+      else if ((schemaObj.size() == 0)
+               || ANY_TYPE_PROPS.containsAll(schemaObj.keySet()))
+      {
         // assume an empty object like "{ }" -- likely for
         // "additionalProperties" specification
-        specType = "object";
+        specType = "any";
       } else {
         System.err.println("Missing type property for '" + name
                                + "'.  Defaulting to object.");
@@ -183,6 +192,9 @@ public class ApiSpecification {
 
     ApiDataType result = null;
     switch (specType) {
+      case "any":
+        result = new AnyType();
+        break;
       case "boolean":
         result = BooleanDataType.parse(name, schemaObj);
         break;
@@ -251,22 +263,48 @@ public class ApiSpecification {
    *
    */
   public ApiDataType resolveDataType(ApiDataType dataType) {
-    ApiDataType origDataType = dataType;
+    // if null, then return null
     if (dataType == null) return null;
-    String name = dataType.getName();
-    if (name == null && (dataType instanceof RefDataType)) {
-      name = this.trimRef(((RefDataType) dataType).getRef());
+
+    // check for a referenced type
+    if (dataType instanceof RefDataType) {
+      // as long as we have a referenced type, then dereference
+      while (dataType instanceof RefDataType) {
+        // cast to a reference type
+        RefDataType refDataType = (RefDataType) dataType;
+
+        // get the reference name and look it up
+        String refName = this.trimRef(refDataType.getRef());
+        dataType = this.schemaTypes.get(refName);
+
+        // if the reference is not found, return null
+        if (dataType == null) return null;
+      }
+
+      // return the de-referenced type
+      return dataType;
+
+    } else {
+      // get the name
+      String name = dataType.getName();
+
+      // check if unnamed -- then return as-is
+      if (name == null) return dataType;
+
+      // check if the name is recognized -- globally named type in schema
+      if (this.schemaTypes.containsKey(name)) {
+        // if so, return the type with that name
+        dataType = this.schemaTypes.get(name);
+
+        // check if a reference type, and if so, then recurse and resolve
+        if (dataType instanceof RefDataType) {
+          dataType = this.resolveDataType(dataType);
+        }
+      }
+
+      // return the data type
+      return dataType;
     }
-    if (name == null) return dataType;
-    dataType = this.schemaTypes.get(name);
-    if (dataType == null) return null;
-    while (dataType instanceof RefDataType) {
-      RefDataType refDataType = (RefDataType) dataType;
-      String refName = this.trimRef(refDataType.getRef());
-      dataType = this.schemaTypes.get(refName);
-      if (dataType == null) return null;
-    }
-    return dataType;
   }
 
   /**
@@ -285,7 +323,9 @@ public class ApiSpecification {
   public Map<String, ObjectProperty> getResolvedProperties(ApiDataType dataType)
   {
     ApiDataType origType = dataType;
-    dataType = this.resolveDataType(dataType);
+    if (dataType instanceof RefDataType) {
+      dataType = this.resolveDataType(dataType);
+    }
     String resolvedName = dataType.getName();
     if (dataType instanceof ObjectDataType) {
       return ((ObjectDataType) dataType).getProperties();

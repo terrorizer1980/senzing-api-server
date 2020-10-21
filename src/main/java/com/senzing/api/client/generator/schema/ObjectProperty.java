@@ -17,6 +17,11 @@ public class ObjectProperty {
   private String name;
 
   /**
+   * The description for the property.
+   */
+  private String description;
+
+  /**
    * The {@link ApiDataType} describing the data type for the property.
    */
   private ApiDataType dataType;
@@ -70,6 +75,24 @@ public class ObjectProperty {
    */
   public void setName(String name) {
     this.name = name;
+  }
+
+  /**
+   * Gets the description for the property.
+   *
+   * @return The description for the property.
+   */
+  public String getDescription() {
+    return this.description;
+  }
+
+  /**
+   * Sets the description for the property.
+   *
+   * @param description The description for the property.
+   */
+  public void setDescription(String description) {
+    this.description = description;
   }
 
   /**
@@ -166,12 +189,14 @@ public class ObjectProperty {
         && this.isWriteOnly() == that.isWriteOnly()
         && this.isNullable() == that.isNullable()
         && Objects.equals(this.getName(), that.getName())
+        && Objects.equals(this.getDescription(), that.getDescription())
         && Objects.equals(this.getDataType(), that.getDataType());
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(this.getName(),
+                        this.getDescription(),
                         this.getDataType(),
                         this.isReadOnly(),
                         this.isWriteOnly(),
@@ -182,6 +207,7 @@ public class ObjectProperty {
   public String toString() {
     return "class=[ " + this.getClass().getName()
         + " ], name=[ " + this.getName()
+        + " ], description=[ " + this.getDescription()
         + " ], dataType=[ " + this.getDataType()
         + " ], readOnly=[ " + this.isReadOnly()
         + " ], writeOnly=[ " + this.isWriteOnly()
@@ -198,6 +224,9 @@ public class ObjectProperty {
   public void buildJson(JsonObjectBuilder builder) {
     ApiDataType dataType = this.getDataType();
     if (dataType != null) dataType.buildJson(builder);
+    if (this.getDescription() != null) {
+      builder.add("description", this.getDescription());
+    }
     if (this.isNullable()) builder.add("nullable", true);
     if (this.isReadOnly()) builder.add("readOnly", true);
     if (this.isWriteOnly()) builder.add("writeOnly", true);
@@ -206,19 +235,38 @@ public class ObjectProperty {
   /**
    *
    */
-  public static ObjectProperty parse(String name, JsonObject jsonObject)
+  public static ObjectProperty parse(String     parentTypeName,
+                                     String     name,
+                                     JsonObject jsonObject)
   {
-    ApiDataType propType = ApiSpecification.parseDataType(jsonObject);
+    if (parentTypeName == null) {
+      System.err.println("********** parent type name is null");
+      System.err.println(jsonObject);
+      Thread.dumpStack();
+    }
+    String propTypeName = null;
+    if (!jsonObject.containsKey("$ref")) {
+      propTypeName = parentTypeName + name.substring(0, 1).toUpperCase()
+          + name.substring(1);
+    }
+
+    ApiDataType propType = ApiSpecification.parseDataType(propTypeName,
+                                                          jsonObject);
+    String description = JsonUtils.getString(jsonObject, "description");
+
     boolean readOnly = JsonUtils.getBoolean(
         jsonObject, "readOnly", false);
     boolean writeOnly = JsonUtils.getBoolean(
         jsonObject, "writeOnly", false);
     boolean propNullable = JsonUtils.getBoolean(
         jsonObject, "nullable", false);
+
     ObjectProperty prop = new ObjectProperty(name, propType);
+    prop.setDescription(description);
     prop.setReadOnly(readOnly);
     prop.setWriteOnly(writeOnly);
     prop.setNullable(propNullable);
+
     return prop;
   }
 }

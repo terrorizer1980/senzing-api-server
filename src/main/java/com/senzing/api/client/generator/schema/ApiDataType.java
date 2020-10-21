@@ -38,6 +38,7 @@ public abstract class ApiDataType {
   public ApiDataType(String name) {
     this.name = name;
     this.description = null;
+    this.nullable = false;
   }
 
   /**

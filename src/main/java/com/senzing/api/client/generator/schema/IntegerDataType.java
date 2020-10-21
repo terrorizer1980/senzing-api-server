@@ -64,6 +64,7 @@ public class IntegerDataType extends NumberDataType<Integer> {
           "Not a valid definition for a IntegerDataType: " + typeValue);
     }
     IntegerDataType intType = new IntegerDataType(name);
+
     String format = JsonUtils.getString(jsonObject, "format");
     if (format != null && !"int32".equals(format)) {
       throw new IllegalArgumentException(

@@ -64,7 +64,9 @@ public class DoubleDataType extends NumberDataType<Double> {
       throw new IllegalArgumentException(
           "Not a valid definition for a DoubleDataType: " + typeValue);
     }
+
     DoubleDataType doubleType = new DoubleDataType(name);
+
     String format = JsonUtils.getString(jsonObject, "format");
     if (!"double".equals(format)) {
       throw new IllegalArgumentException(

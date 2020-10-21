@@ -168,8 +168,7 @@ public class ObjectDataType extends ApiDataType {
   /**
    *
    */
-  public static ObjectDataType parse(String name, JsonObject jsonObject)
-  {
+  public static ObjectDataType parse(String name, JsonObject jsonObject) {
     ObjectDataType objType = new ObjectDataType(name);
 
     // check for standard properties
@@ -177,7 +176,7 @@ public class ObjectDataType extends ApiDataType {
     if (props != null) {
       props.forEach((propName, value) -> {
         JsonObject propObj = (JsonObject) value;
-        ObjectProperty prop = ObjectProperty.parse(propName, propObj);
+        ObjectProperty prop = ObjectProperty.parse(name, propName, propObj);
         objType.addProperty(prop);
       });
     }

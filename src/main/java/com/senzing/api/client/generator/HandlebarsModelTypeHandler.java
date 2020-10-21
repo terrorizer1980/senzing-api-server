@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.senzing.io.IOUtilities.UTF_8;
@@ -95,17 +96,17 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
   }
 
   /**
-   * Generates a Java enumeration class from the specified {@link
-   * EnumerationDataType} instance using the specified {@link ApiSpecification}
+   * Generates a Java class from the specified {@link ApiDataType} instance
+   * using a handlebars template using the specified {@link ApiSpecification}
    * and {@link LanguageAdapter}.
    *
    * @param dataType The {@link ApiDataType} to produce the enum class for.
    * @param apiSpec The {@link ApiSpecification} that the type belongs to.
    * @param langAdapter The {@link LanguageAdapter} to leverage.
    */
-  public void generateModelType(ApiDataType       dataType,
-                                ApiSpecification  apiSpec,
-                                LanguageAdapter   langAdapter)
+  public void generateModelType(ApiDataType      dataType,
+                                ApiSpecification apiSpec,
+                                LanguageAdapter  langAdapter)
   {
     if (!this.isSupported(dataType, langAdapter)) {
       throw new IllegalArgumentException(
@@ -137,5 +138,4 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
       throw new RuntimeException(e);
     }
   }
-
 }

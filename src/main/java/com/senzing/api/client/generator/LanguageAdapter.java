@@ -24,6 +24,16 @@ public interface LanguageAdapter {
   /**
    *
    */
+  Set<String> getNativeTypeNames(ApiDataType dataType);
+
+  /**
+   *
+   */
+  String getNativeInitialValue(ApiDataType dataType);
+
+  /**
+   *
+   */
   String getModelPath(ApiDataType dataType);
 
   /**

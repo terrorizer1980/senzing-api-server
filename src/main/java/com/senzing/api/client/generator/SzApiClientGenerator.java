@@ -48,10 +48,10 @@ public class SzApiClientGenerator {
       ApiSpecification apiSpec = ApiSpecification.parse(jsonObject);
 
       //System.out.println();
-      //System.out.println(apiSpec.toString());
+      System.out.println(apiSpec.toString());
 
       JavaAdapter javaAdapter = new JavaAdapter(
-          "com/senzing/api/model", dir, apiSpec);
+          "com.senzing.api.model", dir, apiSpec);
 
       javaAdapter.generateModelTypes();
 

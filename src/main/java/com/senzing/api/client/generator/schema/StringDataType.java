@@ -29,7 +29,7 @@ public class StringDataType extends ApiDataType {
    * The pattern to match for the string (if any).
    */
   private String pattern;
-  
+
   /**
    * Default constructor to construct an anonymous instance.
    */

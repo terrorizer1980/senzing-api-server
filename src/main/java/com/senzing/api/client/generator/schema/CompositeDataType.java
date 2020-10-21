@@ -113,7 +113,10 @@ public abstract class CompositeDataType extends ApiDataType {
     String    typeProp  = result.getTypesProperty();
     JsonArray jsonArray = JsonUtils.getJsonArray(jsonObject,typeProp);
     for (JsonObject jsonObj: jsonArray.getValuesAs(JsonObject.class)) {
-      ApiDataType dataType = ApiSpecification.parseDataType(jsonObj, jsonObject);
+      String parentName = (jsonObject.containsKey("$ref")) ? null : name;
+      ApiDataType dataType = ApiSpecification.parseDataType(parentName,
+                                                            jsonObj,
+                                                            jsonObject);
       result.addType(dataType);
     }
     return result;
