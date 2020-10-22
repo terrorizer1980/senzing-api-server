@@ -24,6 +24,11 @@ public interface LanguageAdapter {
   /**
    *
    */
+  boolean isBasicType(ApiDataType dataType);
+
+  /**
+   *
+   */
   Set<String> getNativeTypeNames(ApiDataType dataType);
 
   /**

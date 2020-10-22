@@ -10,7 +10,7 @@ public class {{className}} {
 {{#each props}}  /**
    * {{description}}
    */
-  private {{type}} {{name}};
+  private {{{type}}} {{name}};
 
 {{/each}}  /**
    * Default constructor.
@@ -18,22 +18,22 @@ public class {{className}} {
   public {{className}}() {
 {{#each props}}    this.{{name}} = {{initialValue}};
 {{/each}}  }
-
-{{#each props}}  /**
-   * Getter for {{name}}.
+{{#each props}}
+  /**
+   * Getter for {{name}}.  {{description}}
    *
-   * @return {{description}}
+   * @return The value of {{name}}.
    */
-  public {{type}} get{{Name}}() {
+  public {{{type}}} get{{Name}}() {
     return this.{{name}};
   }
 
   /**
-   * Setter for {{name}}.
+   * Setter for {{name}}.  {{description}}
    *
-   * @param value {{description}}
+   * @param value The value for {{name}}.
    */
-  public void set{{Name}}({{type}} value) {
+  public void set{{Name}}({{{type}}} value) {
     this.{{name}} = value;
   }
 {{/each}}
@@ -78,7 +78,7 @@ public class {{className}} {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("{ ");
-{{#each props}}    sb.append("{{name}}=[ ").append(this.get{{Name}}()).append(" ]{{#unless @last}},{{/unless}}");
+{{#each props}}    sb.append("{{name}}=[ ").append(this.get{{Name}}()).append(" ]{{#unless @last}}, {{/unless}}");
 {{/each}}    sb.append(" }");
     return sb.toString();
   }

@@ -6,11 +6,18 @@ import com.senzing.util.JsonUtils;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Describes an object property.
  */
 public class ObjectProperty {
+  /**
+   * The types that should generate inline types for properties.
+   */
+  private static final Set<String> INLINE_TYPES = Set.of(
+      "allOf", "anyOf", "oneOf");
+
   /**
    * The name of the property.
    */
@@ -240,12 +247,15 @@ public class ObjectProperty {
                                      JsonObject jsonObject)
   {
     if (parentTypeName == null) {
-      System.err.println("********** parent type name is null");
-      System.err.println(jsonObject);
       Thread.dumpStack();
     }
     String propTypeName = null;
-    if (!jsonObject.containsKey("$ref")) {
+    String propTypeKey = JsonUtils.getString(jsonObject, "type");
+    if ((propTypeKey != null)
+        && (INLINE_TYPES.contains(propTypeKey)
+            || ("object".equals(propTypeKey)
+                && jsonObject.containsKey("properties"))))
+    {
       propTypeName = parentTypeName + name.substring(0, 1).toUpperCase()
           + name.substring(1);
     }

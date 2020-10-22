@@ -42,6 +42,7 @@ public class JavaAdapter extends AbstractLanguageAdapter {
     map.put(IntegerDataType.class, Set.of(Integer.class));
     map.put(LongDataType.class, Set.of(Long.class));
     map.put(StringDataType.class, Set.of(String.class));
+    map.put(ArrayDataType.class, Set.of(List.class));
 
     BASIC_TYPE_MAP = Collections.unmodifiableMap(map);
 
@@ -134,6 +135,14 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   }
 
   /**
+   *
+   */
+  public boolean isBasicType(ApiDataType dataType) {
+    if (dataType.getName() != null) return false;
+    return (BASIC_TYPE_MAP.containsKey(dataType.getClass()));
+  }
+
+  /**
    * Convenience method to get the fully-qualified type name with the model
    * package for the specified data type.  This returns <tt>null</tt> if the
    * base type name is <tt>null</tt> (i.e.: for basic types).
@@ -167,6 +176,19 @@ public class JavaAdapter extends AbstractLanguageAdapter {
 
     String fullTypeName = this.getTypeName(dataType);
     if (fullTypeName != null) return Set.of(fullTypeName);
+
+    // check if we have an array
+    if (dataType.getClass() == ArrayDataType.class) {
+      ApiDataType itemType = ((ArrayDataType) dataType).getItemType();
+      itemType = apiSpec.resolveDataType(itemType);
+
+      Set<String> nativeItemTypes = this.getNativeTypeNames(itemType);
+      Set<String> result = new LinkedHashSet<>();
+      for (String nativeItemType: nativeItemTypes) {
+        result.add("List<" + nativeItemType + ">");
+      }
+      return Collections.unmodifiableSet(result);
+    }
 
     // check if we have a basic map
     if (dataType.getClass() == ObjectDataType.class) {

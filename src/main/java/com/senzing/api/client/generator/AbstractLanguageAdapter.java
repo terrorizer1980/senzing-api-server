@@ -86,6 +86,9 @@ public abstract class AbstractLanguageAdapter implements LanguageAdapter {
       }
     }
 
+    // check if we have a basic type
+    if (this.isBasicType(dataType)) return null;
+
     // check if we have already generated an anonymous name for this one
     name = this.anonymousTypeNames.get(dataType);
     if (name != null) {
