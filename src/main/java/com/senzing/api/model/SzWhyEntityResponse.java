@@ -75,7 +75,7 @@ public class SzWhyEntityResponse extends SzResponseWithRawData {
   }
 
   /**
-   * Sets the {@link Collection} of {@link SzWhyRecordsResult} describing why
+   * Sets the {@link Collection} of {@link SzWhyEntityResult} describing why
    * the records in the entity resolved.
    */
   public void setWhyResults(Collection<SzWhyEntityResult> results) {
@@ -95,12 +95,12 @@ public class SzWhyEntityResponse extends SzResponseWithRawData {
 
   /**
    * Adds an entity to the list of entities associated with the {@link
-   * SzWhyRecordsResult}.
+   * SzWhyEntityResult}.
    *
    * @param entity The {@link SzEntityData} describing the entity to add.
    */
   public void addEntity(SzEntityData entity) {
-    this.data.entities.add(entity);
+    this.data.addEntity(entity);
   }
 
   /**
@@ -135,10 +135,10 @@ public class SzWhyEntityResponse extends SzResponseWithRawData {
     }
 
     /**
-     * Gets the {@link List} of {@link SzWhyRecordsResult} instances describing
+     * Gets the {@link List} of {@link SzWhyEntityResult} instances describing
      * why the records in the entity resolved.
      *
-     * @return The {@link List} of {@link SzWhyRecordsResult} instances
+     * @return The {@link List} of {@link SzWhyEntityResult} instances
      *         describing why the records in the entity resolved.
      */
     public List<SzWhyEntityResult> getWhyResults() {
@@ -168,6 +168,17 @@ public class SzWhyEntityResponse extends SzResponseWithRawData {
      */
     public List<SzEntityData> getEntities() {
       return Collections.unmodifiableList(this.entities);
+    }
+
+    /**
+     * Adds the specified {@link SzEntityData} to the list of entities involved
+     * in this why operation.
+     *
+     * @param entity The specified {@link SzEntityData} to the list of entities
+     *               involved in this why operation.
+     */
+    private void addEntity(SzEntityData entity) {
+      this.entities.add(entity);
     }
 
     /**
