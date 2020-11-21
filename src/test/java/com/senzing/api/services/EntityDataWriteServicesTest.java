@@ -448,11 +448,11 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLoadRecordResponse clientResponse
-          = this.entityDataApi.addRecordWithReturnedRecordId(recordBody,
-                                                             WATCHLIST_DATA_SOURCE,
-                                                             null,
-                                                             withInfo,
-                                                             withRaw);
+          = this.entityDataApi.postRecord(recordBody,
+                                          WATCHLIST_DATA_SOURCE,
+                                          null,
+                                          withInfo,
+                                          withRaw);
       long after = System.currentTimeMillis();
 
       SzLoadRecordResponse response = jsonCopy(clientResponse,
@@ -487,7 +487,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
       recordBody.put("ADDR_FULL", "101 Fifth Ave, Las Vegas, NV 10018");
 
       before = System.currentTimeMillis();
-      clientResponse = this.entityDataApi.addRecordWithReturnedRecordId(
+      clientResponse = this.entityDataApi.postRecord(
           recordBody, CUSTOMER_DATA_SOURCE, null, withInfo, withRaw);
       after = System.currentTimeMillis();
 
@@ -676,7 +676,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
       long before = System.currentTimeMillis();
       try {
         com.senzing.gen.api.model.SzLoadRecordResponse clientResponse
-            = this.entityDataApi.addRecord(recordBody,
+            = this.entityDataApi.putRecord(recordBody,
                                            CUSTOMER_DATA_SOURCE,
                                            recordId,
                                            null,
@@ -795,7 +795,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
       long before = System.currentTimeMillis();
       try {
         com.senzing.gen.api.model.SzLoadRecordResponse clientResponse
-            = this.entityDataApi.addRecord(recordBody,
+            = this.entityDataApi.putRecord(recordBody,
                                            CUSTOMER_DATA_SOURCE,
                                            recordId,
                                            null,
@@ -1019,7 +1019,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLoadRecordResponse clientResponse
-          = this.entityDataApi.addRecord(recordBody,
+          = this.entityDataApi.putRecord(recordBody,
                                          WATCHLIST_DATA_SOURCE,
                                          recordId1,
                                          null,
@@ -1054,7 +1054,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
       recordBody.put("ADDR_FULL", "101 Fifth Ave, Las Vegas, NV 10018");
 
       before = System.currentTimeMillis();
-      clientResponse = this.entityDataApi.addRecord(recordBody,
+      clientResponse = this.entityDataApi.putRecord(recordBody,
                                                     CUSTOMER_DATA_SOURCE,
                                                     recordId2,
                                                     null,
@@ -1373,7 +1373,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLoadRecordResponse clientLoadResponse
-          = this.entityDataApi.addRecord(recordBody,
+          = this.entityDataApi.putRecord(recordBody,
                                          WATCHLIST_DATA_SOURCE,
                                          recordId1,
                                          null,
@@ -1436,7 +1436,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
       recordBody.put("ADDR_FULL", "101 Fifth Ave, Las Vegas, NV 10018");
 
       before = System.currentTimeMillis();
-      clientLoadResponse = this.entityDataApi.addRecord(recordBody,
+      clientLoadResponse = this.entityDataApi.putRecord(recordBody,
                                                         CUSTOMER_DATA_SOURCE,
                                                         recordId2,
                                                         null,
@@ -1700,7 +1700,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLoadRecordResponse clientLoadResponse
-          = this.entityDataApi.addRecord(recordBody,
+          = this.entityDataApi.putRecord(recordBody,
                                          WATCHLIST_DATA_SOURCE,
                                          recordId1,
                                          null,
@@ -2104,7 +2104,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLoadRecordResponse clientLoadResponse
-          = this.entityDataApi.addRecord(recordBody,
+          = this.entityDataApi.putRecord(recordBody,
                                          WATCHLIST_DATA_SOURCE,
                                          recordId1,
                                          null,
@@ -2168,7 +2168,7 @@ public class EntityDataWriteServicesTest extends AbstractServiceTest {
       recordBody.put("ADDR_FULL", "101 Fifth Ave, Las Vegas, NV 10018");
 
       before = System.currentTimeMillis();
-      clientLoadResponse = this.entityDataApi.addRecord(recordBody,
+      clientLoadResponse = this.entityDataApi.putRecord(recordBody,
                                                         CUSTOMER_DATA_SOURCE,
                                                         recordId2,
                                                         null,

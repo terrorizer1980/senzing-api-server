@@ -2168,14 +2168,14 @@ public class EntityDataReadServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzAttributeSearchResponse clientResponse
-          = this.entityDataApi.searchByAttributes(attrs,
-                                                  null,
-                                                  featMode,
-                                                  withFeatureStats,
-                                                  withInternalFeatures,
-                                                  forceMinimal,
-                                                  withRelationships,
-                                                  withRaw);
+          = this.entityDataApi.searchEntities(attrs,
+                                              null,
+                                              featMode,
+                                              withFeatureStats,
+                                              withInternalFeatures,
+                                              forceMinimal,
+                                              withRelationships,
+                                              withRaw);
       long after = System.currentTimeMillis();
 
       SzAttributeSearchResponse response = jsonCopy(
@@ -2429,14 +2429,14 @@ public class EntityDataReadServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzAttributeSearchResponse clientResponse
-          = this.entityDataApi.searchByAttributes(null,
-                                                  attrList,
-                                                  featMode,
-                                                  withFeatureStats,
-                                                  withInternalFeatures,
-                                                  forceMinimal,
-                                                  withRelationships,
-                                                  withRaw);
+          = this.entityDataApi.searchEntities(null,
+                                              attrList,
+                                              featMode,
+                                              withFeatureStats,
+                                              withInternalFeatures,
+                                              forceMinimal,
+                                              withRelationships,
+                                              withRaw);
       long after = System.currentTimeMillis();
 
       SzAttributeSearchResponse response = jsonCopy(

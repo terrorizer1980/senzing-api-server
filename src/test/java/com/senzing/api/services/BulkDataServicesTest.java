@@ -2,6 +2,8 @@ package com.senzing.api.services;
 
 import com.senzing.api.model.*;
 import com.senzing.datagen.*;
+import com.senzing.gen.api.invoker.ApiClient;
+import com.senzing.gen.api.services.BulkDataApi;
 import com.senzing.repomgr.RepositoryManager;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -144,6 +146,7 @@ public class BulkDataServicesTest extends AbstractServiceTest {
     }
   }
 
+  protected BulkDataApi bulkDataApi;
   protected BulkDataServices bulkDataServices;
   protected DataGenerator dataGenerator;
   protected Random prng;
@@ -154,6 +157,9 @@ public class BulkDataServicesTest extends AbstractServiceTest {
     this.bulkDataServices = new BulkDataServices();
     this.dataGenerator    = new DataGenerator(SEED);
     this.prng             = new Random(SEED);
+    ApiClient apiClient   = new ApiClient();
+    apiClient.setBasePath(this.formatServerUri(""));
+    this.bulkDataApi = new BulkDataApi(apiClient);
   }
 
   /**
@@ -597,7 +603,7 @@ public class BulkDataServicesTest extends AbstractServiceTest {
         long before = System.currentTimeMillis();
         SzBulkDataAnalysisResponse response = this.invokeServerViaHttp(
             POST, uriText, null, mediaType.toString(),
-            bulkDataFile.length(), new FileInputStream(bulkDataFile),
+            bulkDataFile.length(), fis,
             SzBulkDataAnalysisResponse.class);
         response.concludeTimers();
         long after = System.currentTimeMillis();
@@ -634,10 +640,11 @@ public class BulkDataServicesTest extends AbstractServiceTest {
 
       try (FileInputStream fis = new FileInputStream(bulkDataFile)) {
         long before = System.currentTimeMillis();
+
         com.senzing.gen.api.model.SzBulkDataAnalysisResponse clientResponse
             = this.invokeServerViaHttp(
             POST, uriText, null, mediaType.toString(),
-            bulkDataFile.length(), new FileInputStream(bulkDataFile),
+            bulkDataFile.length(), fis,
             com.senzing.gen.api.model.SzBulkDataAnalysisResponse.class);
         long after = System.currentTimeMillis();
 
@@ -660,6 +667,38 @@ public class BulkDataServicesTest extends AbstractServiceTest {
         if (e instanceof RuntimeException) throw ((RuntimeException) e);
         throw new RuntimeException(e);
       }
+    });
+  }
+
+  @ParameterizedTest
+  @MethodSource("getAnalyzeBulkRecordsParameters")
+  public void analyzeBulkRecordsViaFormJavaClientTest2(
+      String              testInfo,
+      MediaType           mediaType,
+      File                bulkDataFile,
+      SzBulkDataAnalysis  expected)
+  {
+    this.performTest(() -> {
+      String uriText = this.formatServerUri("bulk-data/analyze");
+
+      long before = System.currentTimeMillis();
+      com.senzing.gen.api.model.SzBulkDataAnalysisResponse clientResponse
+          = this.bulkDataApi.analyzeBulkRecords(bulkDataFile, null);
+      long after = System.currentTimeMillis();
+
+      SzBulkDataAnalysisResponse response
+          = jsonCopy(clientResponse, SzBulkDataAnalysisResponse.class);
+
+      validateAnalyzeResponse(testInfo,
+                              response,
+                              POST,
+                              uriText,
+                              mediaType,
+                              bulkDataFile,
+                              expected,
+                              before,
+                              after);
+
     });
   }
 

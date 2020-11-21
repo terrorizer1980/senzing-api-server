@@ -67,7 +67,7 @@ public class AdminServicesTest extends AbstractServiceTest {
       String uriText = this.formatServerUri("heartbeat");
       long    before  = System.currentTimeMillis();
       com.senzing.gen.api.model.SzBaseResponse clientResponse
-          = this.adminApi.heartbeat();
+          = this.adminApi.getHeartbeat();
       long after = System.currentTimeMillis();
 
       SzBasicResponse response
@@ -123,7 +123,7 @@ public class AdminServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLicenseResponse clientResponse
-          = this.adminApi.license(null);
+          = this.adminApi.getLicense(null);
       long after = System.currentTimeMillis();
 
       SzLicenseResponse response
@@ -185,7 +185,7 @@ public class AdminServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLicenseResponse clientResponse
-          = this.adminApi.license(false);
+          = this.adminApi.getLicense(false);
       long after = System.currentTimeMillis();
 
       SzLicenseResponse response
@@ -246,7 +246,7 @@ public class AdminServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzLicenseResponse clientResponse
-          = this.adminApi.license(true);
+          = this.adminApi.getLicense(true);
       long after = System.currentTimeMillis();
 
       SzLicenseResponse response
@@ -307,7 +307,7 @@ public class AdminServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzVersionResponse clientResponse
-          = this.adminApi.version(null);
+          = this.adminApi.getVersion(null);
       long after = System.currentTimeMillis();
 
       SzVersionResponse response
@@ -365,7 +365,7 @@ public class AdminServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzVersionResponse clientResponse
-          = this.adminApi.version(false);
+          = this.adminApi.getVersion(false);
       long after = System.currentTimeMillis();
 
       SzVersionResponse response
@@ -423,7 +423,7 @@ public class AdminServicesTest extends AbstractServiceTest {
 
       long before = System.currentTimeMillis();
       com.senzing.gen.api.model.SzVersionResponse clientResponse
-          = this.adminApi.version(true);
+          = this.adminApi.getVersion(true);
       long after = System.currentTimeMillis();
 
       SzVersionResponse response

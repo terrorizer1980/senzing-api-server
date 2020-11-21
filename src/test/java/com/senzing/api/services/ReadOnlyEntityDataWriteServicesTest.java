@@ -271,11 +271,12 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       long before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecordWithReturnedRecordId(recordBody,
-                                                         WATCHLIST_DATA_SOURCE,
-                                                         null,
-                                                         withInfo,
-                                                         withRaw);
+        this.entityDataApi.postRecord(recordBody,
+                                      WATCHLIST_DATA_SOURCE,
+                                      null,
+                                      withInfo,
+                                      withRaw);
+
       } catch (HttpStatusCodeException expected) {
         long after = System.currentTimeMillis();
         com.senzing.gen.api.model.SzErrorResponse clientResponse
@@ -305,7 +306,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecordWithReturnedRecordId(
+        this.entityDataApi.postRecord(
             recordBody, CUSTOMER_DATA_SOURCE, null, withInfo, withRaw);
 
       } catch (HttpStatusCodeException expected) {
@@ -472,7 +473,7 @@ public class ReadOnlyEntityDataWriteServicesTest
       long before = System.currentTimeMillis();
       try {
         com.senzing.gen.api.model.SzLoadRecordResponse clientResponse
-            = this.entityDataApi.addRecord(recordBody,
+            = this.entityDataApi.putRecord(recordBody,
                                            CUSTOMER_DATA_SOURCE,
                                            recordId,
                                            null,
@@ -591,7 +592,7 @@ public class ReadOnlyEntityDataWriteServicesTest
       long before = System.currentTimeMillis();
       try {
         com.senzing.gen.api.model.SzLoadRecordResponse clientResponse
-            = this.entityDataApi.addRecord(recordBody,
+            = this.entityDataApi.putRecord(recordBody,
                                            CUSTOMER_DATA_SOURCE,
                                            recordId,
                                            null,
@@ -738,7 +739,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       long before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      WATCHLIST_DATA_SOURCE,
                                      recordId1,
                                      null,
@@ -774,7 +775,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      CUSTOMER_DATA_SOURCE,
                                      recordId2,
                                      null,
@@ -893,7 +894,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       long before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      WATCHLIST_DATA_SOURCE,
                                      recordId1,
                                      null,
@@ -957,7 +958,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      CUSTOMER_DATA_SOURCE,
                                      recordId2,
                                      null,
@@ -1104,7 +1105,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       long before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      WATCHLIST_DATA_SOURCE,
                                      recordId1,
                                      null,
@@ -1244,7 +1245,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       long before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      WATCHLIST_DATA_SOURCE,
                                      recordId1,
                                      null,
@@ -1308,7 +1309,7 @@ public class ReadOnlyEntityDataWriteServicesTest
 
       before = System.currentTimeMillis();
       try {
-        this.entityDataApi.addRecord(recordBody,
+        this.entityDataApi.putRecord(recordBody,
                                      CUSTOMER_DATA_SOURCE,
                                      recordId2,
                                      null,
