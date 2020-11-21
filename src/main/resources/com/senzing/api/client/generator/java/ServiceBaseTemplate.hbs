@@ -1,0 +1,19 @@
+package {{packageName}};
+
+/**
+ * Interface for wrapper classes that wrap an underlying value.
+ * @param <T>
+ */
+public interface Wrapper<T> {
+  /**
+   * Gets the underlying value.
+   * @return The underlying value.
+   */
+  T get();
+
+  /**
+   * Sets the underlying value.
+   * @param value The underlying value.
+   */
+  void set(T value);
+}

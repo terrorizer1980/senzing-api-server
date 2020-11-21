@@ -5,6 +5,7 @@ import com.senzing.api.model.SzHttpMethod;
 import com.senzing.util.JsonUtils;
 
 import javax.json.*;
+import javax.ws.rs.core.MediaType;
 import java.util.*;
 
 /**
@@ -12,19 +13,24 @@ import java.util.*;
  */
 public class RestOperation {
   /**
+   * The prefix root for ref parameters.
+   */
+  private static final String REF_PARAMS_PREFIX = "#/components/parameters/";
+
+  /**
    * The HTTP method.
    */
-  private SzHttpMethod httpMethod;
+  private SzHttpMethod httpMethod = null;
 
   /**
    * The path for the operation.
    */
-  private String path;
+  private String path = null;
 
   /**
    * The summary for the method.
    */
-  private String summary;
+  private String summary = null;
 
   /**
    * The tags associated with the operation.
@@ -34,12 +40,12 @@ public class RestOperation {
   /**
    * The operation ID uniquely identifying the operation.
    */
-  private String operationId;
+  private String operationId = null;
 
   /**
    * The type for the response.
    */
-  private ApiDataType responseType;
+  private ApiDataType responseType = null;
 
   /**
    * The {@link Map} of {@link String} parameter names to {@link PathParameter}
@@ -52,6 +58,11 @@ public class RestOperation {
    * values.
    */
   private Map<String, QueryParameter> queryParameters = new LinkedHashMap<>();
+
+  /**
+   * The {@link RequestBody} if any.  This is <tt>null</tt> if no request body.
+   */
+  private RequestBody requestBody = null;
 
   /**
    * Default constructor.
@@ -287,24 +298,58 @@ public class RestOperation {
     this.queryParameters.clear();
   }
 
+  /**
+   * Gets the {@link RequestBody} describing the request body for the
+   * operation.  This returns <tt>null</tt> if the operation has no request
+   * body.
+   *
+   * @return The {@link RequestBody} describing the request body for the
+   *         operation, or <tt>null</tt> if the operation has no request body.
+   */
+  public RequestBody getRequestBody() {
+    return this.requestBody;
+  }
+
+  /**
+   * Sets the {@link RequestBody} describing the request body for the
+   * operation.  Set this to <tt>null</tt> if the operation has no request
+   * body.
+   *
+   * @param requestBody The {@link RequestBody} describing the request body for
+   *                    the operation, or <tt>null</tt> if the operation has
+   *                    no request body.
+   */
+  public void setRequestBody(RequestBody requestBody) {
+    this.requestBody = requestBody;
+  }
+
   @Override
   public boolean equals(Object object) {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
     RestOperation that = (RestOperation) object;
     return getHttpMethod() == that.getHttpMethod() &&
-        Objects.equals(getPath(), that.getPath()) &&
-        Objects.equals(getSummary(), that.getSummary()) &&
-        Objects.equals(getTags(), that.getTags()) &&
-        Objects.equals(getOperationId(), that.getOperationId()) &&
-        Objects.equals(getResponseType(), that.getResponseType()) &&
-        Objects.equals(getPathParameters(), that.getPathParameters()) &&
-        Objects.equals(getQueryParameters(), that.getQueryParameters());
+        Objects.equals(this.getPath(), that.getPath()) &&
+        Objects.equals(this.getSummary(), that.getSummary()) &&
+        Objects.equals(this.getTags(), that.getTags()) &&
+        Objects.equals(this.getOperationId(), that.getOperationId()) &&
+        Objects.equals(this.getResponseType(), that.getResponseType()) &&
+        Objects.equals(this.getPathParameters(), that.getPathParameters()) &&
+        Objects.equals(this.getQueryParameters(), that.getQueryParameters()) &&
+        Objects.equals(this.getRequestBody(), that.getRequestBody());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getHttpMethod(), getPath(), getSummary(), getTags(), getOperationId(), getResponseType(), getPathParameters(), getQueryParameters());
+    return Objects.hash(this.getHttpMethod(),
+                        this.getPath(),
+                        this.getSummary(),
+                        this.getTags(),
+                        this.getOperationId(),
+                        this.getResponseType(),
+                        this.getPathParameters(),
+                        this.getQueryParameters(),
+                        this.getRequestBody());
   }
 
   /**
@@ -339,14 +384,22 @@ public class RestOperation {
       // add the path parameters
       for (PathParameter param : this.getPathParameters()) {
         JsonObjectBuilder paramBuilder = Json.createObjectBuilder();
-        param.buildJson(paramBuilder);
+        if (param.getRefName() != null) {
+          paramBuilder.add("$ref", REF_PARAMS_PREFIX + param.getRefName());
+        } else {
+          param.buildJson(paramBuilder);
+        }
         jab.add(paramBuilder);
       }
 
       // add the query parameters
       for (QueryParameter param: this.getQueryParameters()) {
         JsonObjectBuilder paramBuilder = Json.createObjectBuilder();
-        param.buildJson(paramBuilder);
+        if (param.getRefName() != null) {
+          paramBuilder.add("$ref", REF_PARAMS_PREFIX + param.getRefName());
+        } else{
+          param.buildJson(paramBuilder);
+        }
         jab.add(paramBuilder);
       }
 
@@ -354,6 +407,15 @@ public class RestOperation {
       job.add("parameters", jab);
     }
 
+    // handle the request body
+    RequestBody reqBody = this.getRequestBody();
+    if (reqBody != null) {
+      JsonObjectBuilder bodyBuilder = Json.createObjectBuilder();
+      reqBody.buildJson(bodyBuilder);
+      job.add("requestBody", bodyBuilder);
+    }
+
+    // handle the response type
     ApiDataType       responseType    = this.getResponseType();
     JsonObjectBuilder respBuilder     = Json.createObjectBuilder();
     JsonObjectBuilder codeBuilder     = Json.createObjectBuilder();
@@ -391,11 +453,19 @@ public class RestOperation {
   /**
    * Interprets the specified {@link JsonObject} as a {@link QueryParameter}.
    *
+   * @param path The path for the rest operations.
+   *
    * @param jsonObject The {@link JsonObject} to interpret.
+   *
+   * @param paramRefs The {@link JsonObject} describing the root of the
+   *                  parameter references.
    *
    * @return The {@link QueryParameter} that was created.
    */
-  public static Map<SzHttpMethod, RestOperation> parse(JsonObject jsonObject) {
+  public static Map<SzHttpMethod, RestOperation> parse(String     path,
+                                                       JsonObject jsonObject,
+                                                       JsonObject paramRefs)
+  {
     Map<SzHttpMethod, RestOperation> result = new LinkedHashMap<>();
     jsonObject.forEach((methodKey, jsonValue) -> {
       SzHttpMethod method = SzHttpMethod.valueOf(methodKey.toUpperCase());
@@ -406,9 +476,11 @@ public class RestOperation {
       String      opId    = JsonUtils.getString(opObject, "operationId");
       JsonArray   parmArr = JsonUtils.getJsonArray(opObject, "parameters");
       JsonObject  respObj = JsonUtils.getJsonObject(opObject, "responses");
+      JsonObject  reqBody = JsonUtils.getJsonObject(opObject, "requestBody");
 
       RestOperation restOp = new RestOperation();
       restOp.setHttpMethod(method);
+      restOp.setPath(path);
       if (jsonArr != null) {
         for (JsonString tag : jsonArr.getValuesAs(JsonString.class)) {
           restOp.addTag(tag.getString());
@@ -422,21 +494,72 @@ public class RestOperation {
       }
       if (parmArr != null) {
         for (JsonObject paramObj : parmArr.getValuesAs(JsonObject.class)) {
-          String paramType = JsonUtils.getString(paramObj, "in");
-          switch (paramType) {
-            case "path":
-              restOp.addPathParameter(PathParameter.parse(paramObj));
-              break;
-            case "query":
-              restOp.addQueryParameter(QueryParameter.parse(paramObj));
-              break;
-            default:
-              throw new IllegalArgumentException(
-                  "Parameter not in a recognized scope: " + paramType);
+          Parameter parameter = ApiSpecification.parseParameter(opId,
+                                                                paramObj,
+                                                                paramRefs);
+          if (parameter instanceof PathParameter) {
+            restOp.addPathParameter((PathParameter) parameter);
+          } else if (parameter instanceof QueryParameter) {
+            restOp.addQueryParameter((QueryParameter) parameter);
+          } else {
+            throw new IllegalStateException(
+                "Unhandled parameter type: " + parameter.getClass().getName());
           }
         }
       }
 
+      // handle the request body
+      if (reqBody != null) {
+        boolean sse = (restOp.getQueryParameters().stream().anyMatch(param ->
+          param.getName().equals("progressPeriod")
+        ));
+        String  bodyDesc = JsonUtils.getString(reqBody, "description");
+        boolean required = JsonUtils.getBoolean(reqBody, "required", false);
+
+        RequestBody requestBody = new RequestBody();
+        requestBody.setDescription(bodyDesc);
+        requestBody.setRequired(required);
+        JsonObject bodyContent = JsonUtils.getJsonObject(reqBody, "content");
+        if (!sse) {
+          // get the mime type segment
+          JsonObject mimeObject = JsonUtils.getJsonObject(
+              bodyContent, "application/json; charset=UTF-8");
+          if (mimeObject == null) {
+            mimeObject = JsonUtils.getJsonObject(bodyContent,
+                                                 "application/json");
+          }
+
+          // check for problems
+          if (mimeObject == null) {
+            throw new IllegalStateException(
+                "No application/json MIME type found for the request body: "
+                + "path=[ " + path + " ], operationId=[ " + opId + " ]");
+          }
+          // now get the schema under the mime type
+          JsonObject bodySchema = JsonUtils.getJsonObject(mimeObject, "schema");
+
+          String bodyName = opId.substring(0, 1).toUpperCase()
+              + opId.substring(1) + "Body";
+          if (!opId.startsWith("Sz")) bodyName = "Sz" + bodyName;
+
+          ApiDataType bodyType = ApiSpecification.parseDataType(bodyName,
+                                                                bodySchema,
+                                                                bodyContent);
+
+          requestBody.setBodyType(bodyType);
+
+        } else {
+          Set<MediaType> mediaTypes = new LinkedHashSet<>();
+          for (String mediaType: bodyContent.keySet()) {
+            mediaTypes.add(MediaType.valueOf(mediaType));
+          }
+          requestBody.setBlobMediaTypes(mediaTypes);
+        }
+
+        restOp.setRequestBody(requestBody);
+      }
+
+      // handle the responses
       JsonObject contentObj
           = respObj.getJsonObject("200").getJsonObject("content");
       String[] mimeTypes = {
@@ -456,7 +579,7 @@ public class RestOperation {
 
       result.put(method, restOp);
     });
-    return result;
+    return Collections.unmodifiableMap(result);
   }
 
 }

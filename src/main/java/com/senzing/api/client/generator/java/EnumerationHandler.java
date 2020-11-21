@@ -1,5 +1,6 @@
 package com.senzing.api.client.generator.java;
 
+import com.senzing.api.client.generator.ApiSpecification;
 import com.senzing.api.client.generator.HandlebarsModelTypeHandler;
 import com.senzing.api.client.generator.LanguageAdapter;
 import com.senzing.api.client.generator.schema.ApiDataType;
@@ -22,9 +23,13 @@ public class EnumerationHandler extends HandlebarsModelTypeHandler {
    * ApiDataType} is an instance of {@link EnumerationDataType}.
    *
    * @param dataType The {@link ApiDataType} to check if supported.
+   * @param apiSpec The {@link ApiSpecification} that the specified {@link
+   *                ApiDataType} is associated with.
+   * @param langAdapter The {@link LanguageAdapter} to leverage.
    * @return <tt>true</tt> if supported, otherwise <tt>false</tt>.
    */
   public boolean isSupported(ApiDataType      dataType,
+                             ApiSpecification apiSpec,
                              LanguageAdapter  langAdapter)
   {
     return (dataType instanceof EnumerationDataType);

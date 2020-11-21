@@ -2,6 +2,7 @@ package com.senzing.api.client.generator.java;
 
 import com.senzing.api.client.generator.*;
 import com.senzing.api.client.generator.schema.*;
+import com.senzing.api.model.SzHttpMethod;
 
 import java.io.File;
 import java.io.InputStream;
@@ -11,6 +12,16 @@ import java.util.*;
  * Provides a {@link LanguageAdapter} for the Java programming language.
  */
 public class JavaAdapter extends AbstractLanguageAdapter {
+  /**
+   * The template file to use for generating services.
+   */
+  private static final String SERVICE_TEMPLATE = "Service.java.hbs";
+
+  /**
+   * The template file to use for generating operations.
+   */
+  private static final String OPERATION_TEMPLATE = "Operation.java.hbs";
+
   /**
    * The map of {@link ApiDataType} classes to the <b>unmodifiable</b>
    * {@link Set} of basic Java types used to represent them.
@@ -52,6 +63,7 @@ public class JavaAdapter extends AbstractLanguageAdapter {
     handlerMap.put(EnumerationDataType.class, new EnumerationHandler());
     handlerMap.put(ObjectDataType.class, new ObjectHandler());
     handlerMap.put(AllOfDataType.class, new AllOfHandler());
+    handlerMap.put(OneOfDataType.class, new OneOfHandler());
 
     HANDLER_MAP = Collections.unmodifiableMap(handlerMap);
 
@@ -66,79 +78,147 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   }
 
   /**
-   *
+   * The package name for storing the model classes.
    */
   private String modelPackage;
 
   /**
-   *
+   * The package that will hold the services classes.
+   */
+  private String servicePackage;
+
+  /**
+   * The package name for the
+   */
+  private String servicesPackage;
+
+  /**
+   * The base directory for output.
    */
   private File baseDirectory;
 
   /**
+   * Constructs with the model package, base directory and API specification.
    *
    */
-  public JavaAdapter(String            modelPackage,
-                     File              baseDirectory,
-                     ApiSpecification  apiSpec)
+  public JavaAdapter(String modelPackage,
+                     String servicePackage,
+                     File   baseDirectory)
   {
-    super(apiSpec);
+    super(SERVICE_TEMPLATE, OPERATION_TEMPLATE);
     this.modelPackage   = modelPackage.replaceAll("/", ".");
+    this.servicePackage = servicePackage.replaceAll("/", ".");
     this.baseDirectory  = baseDirectory;
   }
 
   /**
-   *
+   * Implemented to return the Java-specific {@link ModelTypeHandler} for the
+   * specified {@link ApiDataType}.
    */
-  public void generateModelTypes() {
-    Set<String> generatedTypes = new HashSet<>();
-    for (ApiDataType dataType : this.apiSpec.getSchemaTypes()) {
-      if (BASIC_TYPE_MAP.containsKey(dataType)) continue;
-      this.generateModelType(dataType);
-
-    }
-  }
-
-  /**
-   *
-   */
-  private void generateModelType(ApiDataType dataType)
+  @Override
+  protected ModelTypeHandler getModelTypeHandler(ApiDataType      dataType,
+                                                 ApiSpecification apiSpec)
   {
-    ModelTypeHandler handler = HANDLER_MAP.get(dataType.getClass());
-    if (handler == null) return;
-    List<ApiDataType> subTypes = handler.getAnonymousSubTypes(dataType,this);
-    for (ApiDataType subType: subTypes) {
-      this.generateModelType(subType);
-    }
-    handler.generateModelType(dataType, this.apiSpec, this);
+    return HANDLER_MAP.get(dataType.getClass());
   }
 
   /**
-   *
+   * Implemented to return the Java file name for the specified {@link
+   * ApiDataType}.
    */
-  public File getFileForModelType(ApiDataType dataType) {
-    String path = this.getModelPath(dataType);
+  @Override
+  public File getFileForModelType(ApiDataType       dataType,
+                                  ApiSpecification  apiSpec)
+  {
+    String path = this.getModelSubPath(dataType, apiSpec);
     if (path == null) return null;
     File modelDir = new File(this.baseDirectory, path);
     modelDir.mkdirs();
-    String name = this.getTypeName(dataType);
+    String name = this.getTypeName(dataType, apiSpec);
     File sourceFile = new File(modelDir, name + ".java");
     return sourceFile;
   }
 
   /**
-   *
+   * Implemented to return the Java file name for the specified service tag.
    */
-  public String getModelPath(ApiDataType dataType) {
-    if (BASIC_TYPE_MAP.containsKey(dataType)) return null;
+  @Override
+  public File getFileForService(String tag, ApiSpecification apiSpec)
+  {
+    String path = this.getServiceSubPath(tag, apiSpec);
+    if (path == null) return null;
+    File serviceDir = new File(this.baseDirectory, path);
+    serviceDir.mkdirs();
+    tag = (tag.length() > 1)
+        ? tag.substring(0, 1) + tag.substring(1) : tag.toUpperCase();
+    String name = tag + "Services";
+    File sourceFile = new File(serviceDir, name + ".java");
+    return sourceFile;
+  }
+
+  /**
+   * Implemented to return the Java file name for the specified {@link
+   * RestOperation}.
+   */
+  @Override
+  public File getFileForOperation(RestOperation     restOp,
+                                  ApiSpecification  apiSpec)
+  {
+    String path = this.getOperationSubPath(restOp, apiSpec);
+    if (path == null) return null;
+    File serviceDir = new File(this.baseDirectory, path);
+    serviceDir.mkdirs();
+    String opId = restOp.getOperationId();
+    String name = (opId.length() > 1)
+        ? opId.substring(0, 1) + opId.substring(1) : opId.toUpperCase();
+    File sourceFile = new File(serviceDir, name + ".java");
+    return sourceFile;
+  }
+
+  /**
+   * Implemented to return the model sub-path by converting the Java package
+   * name into a file path with forward slashes.
+   */
+  @Override
+  public String getModelSubPath(ApiDataType      dataType,
+                                ApiSpecification apiSpec)
+  {
+    if (BASIC_TYPE_MAP.containsKey(dataType.getClass())) return null;
     return this.modelPackage.replace('.', '/');
   }
 
   /**
-   *
+   * Implemented to return the service tag sub-path by converting the Java
+   * package name into a file path with forward slashes.
    */
-  public boolean isBasicType(ApiDataType dataType) {
-    if (dataType.getName() != null) return false;
+  @Override
+  public String getServiceSubPath(String tag, ApiSpecification apiSpec)
+  {
+    if (!apiSpec.getOperationsByTag().containsKey(tag)) return null;
+    return this.servicePackage.replace('.', '/');
+  }
+
+  /**
+   * Implemented to return the {@link RestOperation} sub-path by converting the
+   * Java package name into a file path with forward slashes.
+   */
+  @Override
+  public String getOperationSubPath(RestOperation     restOp,
+                                    ApiSpecification  apiSpec)
+  {
+    String path = restOp.getPath();
+    Map<SzHttpMethod, RestOperation> map = apiSpec.getOperationsForPath(path);
+    if (!restOp.equals(map.get(restOp.getHttpMethod()))) return null;
+    return this.servicePackage.replace('.', '/');
+  }
+
+  /**
+   * Implemented to return <tt>true</tt> if the specified type is a basic
+   * type for Java.
+   */
+  @Override
+  public boolean isBasicType(ApiDataType dataType, ApiSpecification apiSpec) {
+    // if (dataType.getName() != null) return false; -- not sure we need this
     return (BASIC_TYPE_MAP.containsKey(dataType.getClass()));
   }
 
@@ -151,9 +231,10 @@ public class JavaAdapter extends AbstractLanguageAdapter {
    *
    * @return The fully-qualfiied type name or <tt>null</tt> if no type name.
    */
-  public String getFullTypeName(ApiDataType dataType) {
+  public String getFullTypeName(ApiDataType       dataType,
+                                ApiSpecification  apiSpec) {
     // get the type name
-    String typeName = this.getTypeName(dataType);
+    String typeName = this.getTypeName(dataType, apiSpec);
 
     if (typeName == null) return null;
 
@@ -166,15 +247,16 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   }
 
   /**
-   *
+   * Returns the {@link Set} of Java type names for the specified {@link
+   * ApiDataType}.
    */
-  public Set<String> getNativeTypeNames(ApiDataType dataType) {
-    ApiSpecification apiSpec = this.getApiSpecification();
-
+  @Override
+  public Set<String> getNativeTypeNames(ApiDataType       dataType,
+                                        ApiSpecification  apiSpec) {
     // first off we need to resolve the type
     dataType = apiSpec.resolveDataType(dataType);
 
-    String fullTypeName = this.getTypeName(dataType);
+    String fullTypeName = this.getTypeName(dataType, apiSpec);
     if (fullTypeName != null) return Set.of(fullTypeName);
 
     // check if we have an array
@@ -182,7 +264,7 @@ public class JavaAdapter extends AbstractLanguageAdapter {
       ApiDataType itemType = ((ArrayDataType) dataType).getItemType();
       itemType = apiSpec.resolveDataType(itemType);
 
-      Set<String> nativeItemTypes = this.getNativeTypeNames(itemType);
+      Set<String> nativeItemTypes = this.getNativeTypeNames(itemType, apiSpec);
       Set<String> result = new LinkedHashSet<>();
       for (String nativeItemType: nativeItemTypes) {
         result.add("List<" + nativeItemType + ">");
@@ -198,7 +280,8 @@ public class JavaAdapter extends AbstractLanguageAdapter {
         if (addlPropsType == null) return Set.of("Map<String, ?>");
         addlPropsType = apiSpec.resolveDataType(addlPropsType);
 
-        Set<String> valueTypes = this.getNativeTypeNames(addlPropsType);
+        Set<String> valueTypes = this.getNativeTypeNames(addlPropsType,
+                                                         apiSpec);
         Set<String> result = new LinkedHashSet<>();
         for (String valueType: valueTypes) {
           result.add("Map<String, " + valueType + ">");
@@ -222,9 +305,15 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   }
 
   /**
+   * Gets the text for the initial value for a property having the specified
+   * {@link ApiDataType}.
    *
+   * @param dataType The {@link ApiDataType} for which the na
    */
-  public String getNativeInitialValue(ApiDataType dataType) {
+  @Override
+  public String getNativeInitialValue(ApiDataType       dataType,
+                                      ApiSpecification  apiSpec)
+  {
     if (dataType == null) return null;
     if (dataType instanceof NumberDataType) {
       // check if a number and if nullable
@@ -284,20 +373,15 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   /**
    *
    */
-  public Set<String> getDependencies(ApiDataType dataType)
+  @Override
+  public Set<String> getDependencies(ApiDataType      dataType,
+                                     ApiSpecification apiSpec)
   {
-    dataType = this.getApiSpecification().resolveDataType(dataType);
-
-    System.err.println();
-    System.err.println("----------------------------------------");
-    System.err.println("DATA TYPE: " + dataType.getClass().getSimpleName()
-                           + " / " + dataType.getName());
+    dataType = apiSpec.resolveDataType(dataType);
 
     // check if we have a basic type
-    if (BASIC_TYPE_MAP.containsKey(dataType)) {
-      System.err.println("*** BASIC TYPE");
-      Set<String> deps = BASIC_IMPORT_MAP.get(dataType);
-      System.err.println("DEPS: " + deps);
+    if (BASIC_TYPE_MAP.containsKey(dataType.getClass())) {
+      Set<String> deps = BASIC_IMPORT_MAP.get(dataType.getClass());
       if (deps != null) return deps;
       return Collections.emptySet();
     }
@@ -307,40 +391,33 @@ public class JavaAdapter extends AbstractLanguageAdapter {
 
     // check if we have a composite data type
     if ((dataType instanceof AllOfDataType) && dataType.getName() != null) {
-      System.err.println("*** ALL-OF TYPE");
-      String typeName = this.getFullTypeName(dataType);
+      String typeName = this.getFullTypeName(dataType, apiSpec);
 
       // check if we succeeded in getting a type name
       if (typeName != null) {
         deps.add(typeName);
-        System.err.println("DEPS: " + typeName);
         return Collections.unmodifiableSet(deps);
       }
 
     } else if (dataType instanceof CompositeDataType) {
-      System.err.println("*** COMPOSITE TYPE");
       // cast to a composite data type and create the return set
-      CompositeDataType compDataType  = (CompositeDataType) dataType;
+      CompositeDataType compDataType = (CompositeDataType) dataType;
 
       // loop over the sub types
       for (ApiDataType subType : compDataType.getTypes()) {
-        deps.addAll(this.getDependencies(subType));
+        deps.addAll(this.getDependencies(subType, apiSpec));
       }
-
-      System.err.println("DEPS: " + deps);
 
       // return an unmodifiable set
       return Collections.unmodifiableSet(deps);
 
     } else if (dataType instanceof ObjectDataType) {
       ObjectDataType objectDataType = (ObjectDataType) dataType;
-      System.err.println("*** OBJECT TYPE");
-      String typeName = this.getFullTypeName(dataType);
+      String typeName = this.getFullTypeName(dataType, apiSpec);
 
       // check if we succeeded in getting a type name
       if (typeName != null) {
         deps.add(typeName);
-        System.err.println("DEPS: " + typeName);
         return Collections.unmodifiableSet(deps);
       }
 
@@ -355,18 +432,15 @@ public class JavaAdapter extends AbstractLanguageAdapter {
           // add the map type
           deps.add("java.util.Map");
 
-          deps.addAll(this.getDependencies(addlPropsType));
+          deps.addAll(this.getDependencies(addlPropsType, apiSpec));
 
-          System.err.println("DEPS: " + deps);
           return Collections.unmodifiableSet(deps);
         }
       }
 
-      System.err.println("NO DEPS");
       return Collections.emptySet();
 
     } else if (dataType instanceof ArrayDataType) {
-      System.err.println("*** ARRAY TYPE");
       ArrayDataType arrayDataType = (ArrayDataType) dataType;
 
       // check if we have a set or a list
@@ -377,25 +451,48 @@ public class JavaAdapter extends AbstractLanguageAdapter {
       }
 
       // get the dependencies for the item type
-      deps.addAll(this.getDependencies(arrayDataType.getItemType()));
+      deps.addAll(this.getDependencies(arrayDataType.getItemType(), apiSpec));
 
-      System.err.println("DEPS: " + deps);
       return Collections.unmodifiableSet(deps);
 
     } else if (dataType instanceof EnumerationDataType) {
-      System.err.println("*** ENUM TYPE");
-      String typeName = this.getTypeName(dataType);
+      String typeName = this.getTypeName(dataType, apiSpec);
       // check for the model package
-      if (this.modelPackage != null && this.modelPackage.trim().length() > 0)
-      {
+      if (this.modelPackage != null && this.modelPackage.trim().length() > 0) {
         typeName = this.modelPackage + "." + typeName;
       }
       deps.add(typeName);
       deps.add("static " + typeName + ".*");
-      System.err.println("DEPS: " + deps);
       return Collections.unmodifiableSet(deps);
     }
-    System.err.println("NO DEPS");
     return Collections.emptySet();
+  }
+
+  /**
+   * Sorts the imports for cosmetic purposes.
+   */
+  protected static Set<String> sortImports(Set<String> importSet) {
+    List<String> importList = new LinkedList<>();
+    importList.addAll(importSet);
+    Collections.sort(importList);
+    importSet = new LinkedHashSet<>();
+    for (String imported : importList) {
+      if (imported.startsWith("java.")) importSet.add(imported);
+    }
+    for (String imported : importList) {
+      if (imported.startsWith("org.")) importSet.add(imported);
+    }
+    for (String imported : importList) {
+      if (imported.startsWith("com.")) importSet.add(imported);
+    }
+    for (String imported : importList) {
+      if ((!imported.startsWith("static ")) && !importSet.contains(imported)) {
+        importSet.add(imported);
+      }
+    }
+    for (String imported : importList) {
+      if (imported.startsWith("static ")) importSet.add(imported);
+    }
+    return importSet;
   }
 }

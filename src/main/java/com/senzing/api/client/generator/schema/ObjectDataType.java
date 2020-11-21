@@ -174,9 +174,11 @@ public class ObjectDataType extends ApiDataType {
     // check for standard properties
     JsonObject props = JsonUtils.getJsonObject(jsonObject, "properties");
     if (props != null) {
+      String parentName = (name != null) ? name
+          : ApiSpecification.getCurrentSchemaTypeName();
       props.forEach((propName, value) -> {
         JsonObject propObj = (JsonObject) value;
-        ObjectProperty prop = ObjectProperty.parse(name, propName, propObj);
+        ObjectProperty prop = ObjectProperty.parse(parentName, propName, propObj);
         objType.addProperty(prop);
       });
     }

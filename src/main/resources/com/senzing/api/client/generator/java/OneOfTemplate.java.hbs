@@ -1,0 +1,85 @@
+package {{packageName}};
+
+import java.util.Objects;
+{{#each imports}}import {{.}};
+{{/each}}
+/**
+ * {{description}}
+ */
+public class {{className}} {
+{{#each props}}  /**
+   * {{description}}
+   */
+  private {{{type}}} {{name}};
+
+{{/each}}  /**
+   * Default constructor.
+   */
+  public {{className}}() {
+{{#each props}}    this.{{name}} = {{initialValue}};
+{{/each}}  }
+{{#each props}}
+  /**
+   * Getter for {{name}}.  {{description}}
+   *
+   * @return The value of {{name}}.
+   */
+  public {{{type}}} get{{Name}}() {
+    return this.{{name}};
+  }
+
+  /**
+   * Setter for {{name}}.  {{description}}
+   *
+   * @param value The value for {{name}}.
+   */
+  public void set{{Name}}({{{type}}} value) {
+    this.{{name}} = value;
+  }
+{{/each}}
+  /**
+   * Overridden to return <tt>true</tt> if and only if other specified parameter
+   * is and reference to and object of the same same class with equivalent
+   * properties.
+   *
+   * @param obj The object to compare with.
+   *
+   * @return <tt>true</tt> if and only if the objects are equal, otherwise
+   *         <tt>false</tt>.
+   */
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null) return false;
+    if (this == obj) return true;
+    if (this.getClass() != obj.getClass()) return false;
+    {{className}} that = ({{className}}) obj;
+{{#each props}}    if (!Objects.equal(this.get{{Name}}(), that.get{{Name}}())) return false;
+{{/each}}    return true;
+  }
+
+  /**
+   * Overridden to return and hash code that is consistent with the {@link
+   * #equals(Object)} implementation.
+   *
+   * @return The hash code for this instance.
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash({{#each props}}{{#unless @first}}                        {{/unless}}this.get{{Name}}(){{#if @last}});{{else}},{{/if}}
+{{/each}}
+  }
+
+  /**
+   * Overridden to return a diagnostic {@link String} describing this instance.
+   *
+   * @return A diagnostic {@link String} describing this instance.
+   */
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{ ");
+{{#each props}}    sb.append("{{name}}=[ ").append(this.get{{Name}}()).append(" ]{{#unless @last}}, {{/unless}}");
+{{/each}}    sb.append(" }");
+    return sb.toString();
+  }
+}

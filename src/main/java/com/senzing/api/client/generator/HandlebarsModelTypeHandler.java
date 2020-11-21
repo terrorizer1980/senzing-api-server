@@ -5,7 +5,6 @@ import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.io.URLTemplateSource;
 import com.senzing.api.client.generator.schema.ApiDataType;
-import com.senzing.api.client.generator.schema.EnumerationDataType;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -13,7 +12,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import static com.senzing.io.IOUtilities.UTF_8;
@@ -62,6 +60,7 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
    * @param dataType The {@link ApiDataType} to produce the enum class for.
    * @param apiSpec The {@link ApiSpecification} that the type belongs to.
    * @param langAdapter The {@link LanguageAdapter} to leverage.
+   * @return The template resource path for generating the model.
    */
   protected String getTemplateResourcePath(ApiDataType       dataType,
                                            ApiSpecification  apiSpec,
@@ -85,8 +84,9 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
   {
     Map<String, Object> paramMap = new LinkedHashMap<>();
 
-    String name = langAdapter.getTypeName(dataType);
-    String pkg  = langAdapter.getModelPath(dataType).replace('/','.');
+    String name = langAdapter.getTypeName(dataType, apiSpec);
+    String pkg  = langAdapter.getModelSubPath(dataType, apiSpec)
+        .replace('/','.');
 
     paramMap.put("className", name);
     paramMap.put("packageName", pkg);
@@ -101,19 +101,19 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
    * and {@link LanguageAdapter}.
    *
    * @param dataType The {@link ApiDataType} to produce the enum class for.
-   * @param apiSpec The {@link ApiSpecification} that the type belongs to.
    * @param langAdapter The {@link LanguageAdapter} to leverage.
    */
+  @Override
   public void generateModelType(ApiDataType      dataType,
                                 ApiSpecification apiSpec,
                                 LanguageAdapter  langAdapter)
   {
-    if (!this.isSupported(dataType, langAdapter)) {
+    if (!this.isSupported(dataType, apiSpec, langAdapter)) {
       throw new IllegalArgumentException(
           "The specified data type is not supported by this handler: "
               + dataType);
     }
-    File file = langAdapter.getFileForModelType(dataType);
+    File file = langAdapter.getFileForModelType(dataType, apiSpec);
     try (FileOutputStream fos = new FileOutputStream(file);
          OutputStreamWriter osw = new OutputStreamWriter(fos, UTF_8))
     {

@@ -7,6 +7,10 @@ import com.senzing.api.client.generator.schema.*;
 
 import java.util.*;
 
+/**
+ * Handles generating model classes for the {@link AllOfDataType} for the Java
+ * language.
+ */
 public class AllOfHandler extends ObjectHandler {
   /**
    * Default constructor.
@@ -21,12 +25,15 @@ public class AllOfHandler extends ObjectHandler {
    * composite types are of type {@link ObjectDataType}.
    *
    * @param dataType The {@link ApiDataType} to check if supported.
+   * @param apiSpec The {@link ApiSpecification} that the specified {@link
+   *                ApiDataType} is associated with.
+   * @param langAdapter The {@link LanguageAdapter} to leverage.
    * @return <tt>true</tt> if supported, otherwise <tt>false</tt>.
    */
   public boolean isSupported(ApiDataType      dataType,
+                             ApiSpecification apiSpec,
                              LanguageAdapter  langAdapter)
   {
-    ApiSpecification apiSpec = langAdapter.getApiSpecification();
     if (!(dataType instanceof AllOfDataType)) return false;
     List<ApiDataType> compositeTypes = ((AllOfDataType) dataType).getTypes();
     for (ApiDataType compType: compositeTypes) {
@@ -64,8 +71,9 @@ public class AllOfHandler extends ObjectHandler {
 
     if (compositeTypes.get(0) instanceof RefDataType) {
       extendsType = apiSpec.resolveDataType(compositeTypes.get(0));
-      extendsName = langAdapter.getTypeName(extendsType);
-      extendsPkg  = langAdapter.getModelPath(extendsType).replace('/', '.');
+      extendsName = langAdapter.getTypeName(extendsType, apiSpec);
+      extendsPkg  = langAdapter.getModelSubPath(extendsType, apiSpec)
+          .replace('/', '.');
       imports.add(extendsPkg + "." + extendsName);
     }
 
@@ -78,12 +86,13 @@ public class AllOfHandler extends ObjectHandler {
     Map<String, ObjectProperty> derivedProps = new LinkedHashMap<>(allProps);
     derivedProps.keySet().removeAll(extendsProps.keySet());
 
-    this.populatePropertyImports(derivedProps.values(), imports, langAdapter);
+    this.populatePropertyImports(
+        derivedProps.values(), imports, apiSpec, langAdapter);
 
     Map<String, Object> paramMap = new LinkedHashMap<>();
 
-    String name = langAdapter.getTypeName(dataType);
-    String path = langAdapter.getModelPath(dataType);
+    String name = langAdapter.getTypeName(dataType, apiSpec);
+    String path = langAdapter.getModelSubPath(dataType, apiSpec);
     String pkg  = path.replace('/','.');
 
     paramMap.put("extends", extendsName);
@@ -93,23 +102,30 @@ public class AllOfHandler extends ObjectHandler {
     paramMap.put("fullClassName", pkg + "." + name);
 
     List<Map<String,String>> propertyMaps
-        = this.getPropertyParams(derivedProps.values(), langAdapter);
+        = this.getPropertyParams(derivedProps.values(), apiSpec,  langAdapter);
     paramMap.put("props", propertyMaps);
 
     return Context.newContext(dataType).combine(paramMap);
   }
 
   /**
+   * Overridden to handle anonymous sub-types for an {@link AllOfDataType}.
+   * This differs from {@link ObjectDataType} in that the anonymous sub-types
+   * are not in direct properties of the {@link AllOfDataType}, but rather in
+   * one or more of the composite types.
    *
-   * @param dataType
-   * @param langAdapter
-   * @return
+   * @param dataType The {@link ApiDataType} for which to get the anonymous
+   *                 sub-types.  This implementation requires an instance of
+   *                 {@link ApiDataType}.
+   * @param langAdapter The {@link JavaAdapter} to use.
+   * @return The {@link List} of {@link ApiDataType} instances.
    */
+  @Override
   public List<ApiDataType> getAnonymousSubTypes(
       ApiDataType      dataType,
+      ApiSpecification apiSpec,
       LanguageAdapter  langAdapter)
   {
-    ApiSpecification  apiSpec         = langAdapter.getApiSpecification();
     AllOfDataType     allOfDataType   = (AllOfDataType) dataType;
     List<ApiDataType> compositeTypes  = allOfDataType.getTypes();
     List<ApiDataType> result          = new LinkedList<>();
@@ -130,7 +146,7 @@ public class AllOfHandler extends ObjectHandler {
 
     for (ObjectProperty prop: derivedProps.values()) {
       ApiDataType propType = prop.getDataType();
-      if (!this.isAnonymousSubType(propType)) continue;
+      if (!this.isAnonymousSubType(propType, apiSpec)) continue;
       result.add(propType);
     }
 

@@ -1,5 +1,6 @@
 package com.senzing.api.client.generator.schema;
 
+import com.senzing.api.client.generator.ApiSpecification;
 import com.senzing.util.JsonUtils;
 
 import javax.json.Json;

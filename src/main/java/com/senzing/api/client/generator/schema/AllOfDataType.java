@@ -1,5 +1,7 @@
 package com.senzing.api.client.generator.schema;
 
+import com.senzing.api.client.generator.ApiSpecification;
+
 import javax.json.JsonObject;
 
 /**
@@ -10,7 +12,7 @@ public class AllOfDataType extends CompositeDataType {
    * Default constructor.
    */
   public AllOfDataType() {
-    // do nothing
+    this(null);
   }
 
   /**

@@ -11,27 +11,11 @@ import java.util.Objects;
 /**
  * Describes a query parameter for a rest operation.
  */
-public class QueryParameter {
-  /**
-   * The name of the parameter.
-   */
-  private String name = null;
-
-  /**
-   * The description for the parameter.
-   */
-  private String description = null;
-
+public class QueryParameter extends Parameter {
   /**
    * Whether or not the parameter is required.
    */
   private boolean required = false;
-
-  /**
-   * The {@link ApiDataType} describing the data type for how to interpret the
-   * {@link String} in the query parameters.
-   */
-  private ApiDataType dataType = null;
 
   /**
    * The default value for the query parameter.
@@ -46,49 +30,13 @@ public class QueryParameter {
   }
 
   /**
-   * Gets the name of the parameter.
-   *
-   * @return The name of the parameter.
-   */
-  public String getName() {
-    return name;
-  }
-
-  /**
-   * Sets the name of the parameter.
-   *
-   * @param name The name of the parameter.
-   */
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  /**
-   * Gets the description of the parameter.
-   *
-   * @return The description of the parameter.
-   */
-  public String getDescription() {
-    return description;
-  }
-
-  /**
-   * Sets the description of the parameter.
-   *
-   * @param description The description of the parameter.
-   */
-  public void setDescription(String description) {
-    this.description = description;
-  }
-
-  /**
    * Checks whether or not the parameter is required.
    *
    * @return <tt>true</tt> if the parameter is required, otherwise
    *         <tt>false</tt>.
    */
   public boolean isRequired() {
-    return required;
+    return this.required;
   }
 
   /**
@@ -102,30 +50,12 @@ public class QueryParameter {
   }
 
   /**
-   * Gets the data type for the parameter.
-   *
-   * @return The data type for the parameter.
-   */
-  public ApiDataType getDataType() {
-    return dataType;
-  }
-
-  /**
-   * Sets the data type for the parameter.
-   *
-   * @param dataType The data type for the parameter.
-   */
-  public void setDataType(ApiDataType dataType) {
-    this.dataType = dataType;
-  }
-
-  /**
    * Gets the default value for the parameter encoded as a string
    *
    * @return The default value for the parameter encoded as a string.
    */
   public String getDefaultValue() {
-    return defaultValue;
+    return this.defaultValue;
   }
 
   /**
@@ -143,19 +73,15 @@ public class QueryParameter {
     if (this == object) return true;
     if (object == null || getClass() != object.getClass()) return false;
     QueryParameter that = (QueryParameter) object;
-    return this.isRequired() == that.isRequired() &&
-        Objects.equals(this.getName(), that.getName()) &&
-        Objects.equals(this.getDescription(), that.getDescription()) &&
-        Objects.equals(this.getDataType(), that.getDataType()) &&
-        Objects.equals(this.getDefaultValue(), that.getDefaultValue());
+    return super.equals(object)
+        && this.isRequired() == that.isRequired()
+        && Objects.equals(this.getDefaultValue(), that.getDefaultValue());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(this.getName(),
-                        this.getDescription(),
+    return Objects.hash(super.hashCode(),
                         this.isRequired(),
-                        this.getDataType(),
                         this.getDefaultValue());
   }
 
@@ -190,35 +116,5 @@ public class QueryParameter {
     JsonObjectBuilder builder = Json.createObjectBuilder();
     this.buildJson(builder);
     return JsonUtils.toJsonText(builder, true);
-  }
-
-  /**
-   * Interprets the specified {@link JsonObject} as a {@link QueryParameter}.
-   *
-   * @param jsonObject The {@link JsonObject} to interpret.
-   *
-   * @return The {@link QueryParameter} that was created.
-   */
-  public static QueryParameter parse(JsonObject jsonObject) {
-    if (!"query".equals(JsonUtils.getString(jsonObject, "in"))) {
-      throw new IllegalArgumentException(
-          "The specified JSON object does not describe a query parameter: "
-          + "in = " + JsonUtils.getString(jsonObject, "in"));
-    }
-    String      name      = JsonUtils.getString(jsonObject, "name");
-    String      desc      = JsonUtils.getString(jsonObject, "description");
-    JsonObject  typeObj   = JsonUtils.getJsonObject(jsonObject, "schema");
-    Boolean     required  = JsonUtils.getBoolean(jsonObject, "required");
-    ApiDataType dataType  = ApiSpecification.parseDataType(typeObj, jsonObject);
-    String      defVal    = JsonUtils.getString(typeObj, "default");
-
-    QueryParameter param = new QueryParameter();
-    param.setName(name);
-    param.setDescription(desc);
-    param.setRequired(required);
-    param.setDefaultValue(defVal);
-    param.setDataType(dataType);
-
-    return param;
   }
 }

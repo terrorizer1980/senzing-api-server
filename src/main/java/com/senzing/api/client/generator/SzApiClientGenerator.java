@@ -1,14 +1,10 @@
 package com.senzing.api.client.generator;
 
 import javax.json.*;
-import javax.json.stream.JsonParser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLParser;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.senzing.api.client.generator.java.JavaAdapter;
-import com.senzing.util.JsonUtils;
 
 import java.io.File;
 import java.util.Map;
@@ -51,9 +47,11 @@ public class SzApiClientGenerator {
       System.out.println(apiSpec.toString());
 
       JavaAdapter javaAdapter = new JavaAdapter(
-          "com.senzing.api.model", dir, apiSpec);
+          "com.senzing.api.model",
+          "com.senzing.api.services",
+          dir);
 
-      javaAdapter.generateModelTypes();
+      javaAdapter.generateModelTypes(apiSpec);
 
     } catch (Exception e) {
       e.printStackTrace();

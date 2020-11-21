@@ -1,5 +1,7 @@
 package com.senzing.api.client.generator.schema;
 
+import com.senzing.api.client.generator.ApiSpecification;
+
 import javax.json.JsonObjectBuilder;
 
 /**
@@ -7,10 +9,10 @@ import javax.json.JsonObjectBuilder;
  */
 public class AnyType extends ApiDataType {
   /**
-   * Default constructor for an anonymous type.
+   * Default constructor.
    */
   public AnyType() {
-    super();
+    this(null);
   }
 
   /**
