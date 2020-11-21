@@ -1,0 +1,397 @@
+package {{packageName}};
+
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+import java.util.*;
+
+/**
+ * Provides a base class for <tt>oneOf</tt>> constructs in OpenAPI.  This
+ * class provides support methods for implementing the <tt>oneOf</tt> type.
+ */
+public abstract class OneOf {
+  /**
+   * The actual class of the object being wrapped by this instance.
+   */
+  private Class<?> actual;
+
+  /**
+   * Constructs with the actual class of the object being wrapped by this
+   * instance.
+   * @param actual The actual class of the object being wrapped by this
+   *               instance.
+   */
+  protected OneOf(Class<?> actual) {
+    this.actual = actual;
+  }
+
+  /**
+   * Gets the underlying value that this object wraps.
+   * @return The underlying value that this object wraps.
+   */
+  @JsonValue
+  public abstract Object getValue();
+
+  /**
+   * Sets the underlying value that this object wraps.
+   * @param value The underlying value that this object wraps.
+   * @throws ClassCastException If the specified value is not of the expected
+   *                            actual type represented by this wrapper.
+   */
+  public abstract void setValue(Object value)
+    throws ClassCastException;
+
+  /**
+   * Returns the type of values that can be wrapped by this instance.
+   * @return The type of values that can be wrapped by this instance.
+   */
+  public final Class<?> getValueType() {
+   return this.actual;
+  }
+
+  /**
+   * Checks if this instance holds an instance of the specified {@link Class}.
+   * @param c The {@link Class} to check if the value is an instance of, or
+   *          <tt>null</tt> if checking if the value is <tt>null</tt>.
+   * @return <tt>true</tt> if the value is an instance of the specified
+   *         {@link Class}, otherwise <tt>false</tt>.
+   */
+  public final boolean is(Class<?> c) {
+    if (c == null) {
+      return (this.getValue() == null);
+    }
+    return (c.isAssignableFrom(this.actual));
+  }
+
+  /**
+   * Attempts to cast the underlying value to an instance of the specified
+   * class and return as the specified type.
+   * @param c The {@link Class} to cast to.
+   * @return The value cast to the specified type.
+   * @throws NullPointerException If the specified {@link Class} is
+   *                              <tt>null</tt>.
+   * @throws IllegalArgumentException If the underlying value is not an instance
+   *                                  of the specified {@link Class}
+   */
+  public final <T> T as(Class<T> c)
+      throws NullPointerException, IllegalArgumentException
+  {
+    Objects.requireNonNull(c, "The specified class cannot be null.");
+    if (!this.is(c)) {
+      throw new IllegalArgumentException(
+         "Value is an instance of "
+          + this.getValueType().getName()
+          + ", not " + c.getName());
+    }
+    @SuppressWarnings("unchecked")
+    T result = (T) this.getValue();
+    return result;
+  }
+
+  /**
+   * Implemented to hash the underlying value.
+   * @return The hash code for the underlying value.
+   */
+  @Override
+  public final int hashCode() {
+    return Objects.hash(this.getValue());
+  }
+
+  /**
+   * Implemented to return <tt>true</tt> if and only if the specified parameter
+   * is a non-null reference to an object of the same class with an equivalent
+   * underlying value.
+   * @param obj The object with which to compare.
+   * @return <tt>true</tt> if the objects are equal, otherwise <tt>false</tt>.
+   */
+  @Override
+  public final boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (this.getClass() != obj.getClass()) return false;
+    OneOf oneOf = (OneOf) obj;
+    return Objects.equals(this.getValue(), oneOf.getValue());
+  }
+
+  /**
+   * Implemented to return the {@link String#valueOf(Object)} representation
+   * of the underlying wrapped value.
+   * @return The {@link String} representation of the underlying wrapped value.
+   */
+  @Override
+  public String toString() {
+    return String.valueOf(this.getValue());
+  }
+
+  /**
+   * Provides a means to parse the "one-of" implementation class as the correct
+   * concrete wrapper class for the actual value.
+   *
+   * @param text The text to parse.
+   * @param oneOfClass The one-of base class representing the various possible
+   *                   actual types.
+   * @param wrapperClassMap The {@link Map} of value class keys to wrapper
+   *                        {@link Class} values.
+   */
+  protected static <W extends OneOf> W oneOfValueOf(
+      String                          text,
+      Class<W>                        oneOfClass,
+      Map<Class, Class<? extends W>>  wrapperClassMap)
+  {
+    // check if the specified text is null or is a JSON representation of a
+    // null value and simply return null
+    if (text == null || text.equals("null")) return null;
+
+    // iterate over the value classes
+    for (Class<?> valueClass : wrapperClassMap.keySet()) {
+      // parse the value
+      Optional parsed = parseValue(text, valueClass);
+
+      // check if it parsed successfully, if not then try the next value class
+      if (parsed.isEmpty()) continue;
+
+      // get the value
+      Object value = parsed.get();
+
+      // get the associated wrapper class
+      Class<? extends W> wrapperClass = wrapperClassMap.get(valueClass);
+
+      // wrap the value in the appropriate class
+      return wrap(wrapperClass, valueClass, value);
+    }
+
+    // fall back to using the text directly if one-of String is possible and
+    // all other attempts to parse as a different value failed
+    if (wrapperClassMap.containsKey(String.class)) {
+      Class<? extends W> wrapperClass = wrapperClassMap.get(String.class);
+      return wrap(wrapperClass, String.class, text);
+    }
+
+    // if we get here then the text cannot be parsed as expected
+    throw new IllegalArgumentException(
+        "Unable to parse the specified text as "
+            + oneOfClass.getName() + ": " + text);
+
+  }
+
+  /**
+   * Attempts to parse the specified text as the specified type.
+   *
+   * @param text The text to parse
+   * @param type The type to parse as.
+   * @param <T> The type to parse as and return.
+   * @return The parsed object.
+   */
+  protected static <T> Optional<T> parseValue(String text, Class<T> type)
+  {
+    try {
+      // try to parse the object as JSON
+      T result = JsonUtilities.jsonParse(text, type);
+
+      // return the result
+      return Optional.of(result);
+
+    } catch (Exception e) {
+      return Optional.empty();
+    }
+  }
+
+  /**
+   * Utility method for wrapping the specified value having the specified
+   * value class in an instance of the specified wrapper class.
+   *
+   * @param wrapperClass
+   * @param valueClass
+   * @param value
+   * @param <W>
+   * @param <V>
+   * @return
+   */
+  private static <W extends OneOf, V> W
+      wrap(Class<? extends W> wrapperClass,
+           Class<? extends V> valueClass,
+           V                  value)
+  {
+    try {
+      // construct the wrapper
+      W wrapper = wrapperClass.getDeclaredConstructor().newInstance();
+
+      wrapper.setValue(value);
+
+      // return the result
+      return wrapper;
+
+    } catch (RuntimeException e) {
+      e.printStackTrace();
+      throw e;
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Implements the <tt>valueOf(String)</tt> functionality for the specified
+   * concrete {@link Wrapper} class.
+   *
+   * @param text The text to be parsed.
+   * @param wrapperClass The concrete wrapper class being instantiated.
+   * @param valueClass The class of the value held by the wrapper class.
+   * @return The constructed {@link Wrapper} instance represented by the
+   *         specified text.
+   */
+  protected static <W extends OneOf & Wrapper<V>, V> W wrapperValueOf(
+      String    text,
+      Class<W>  wrapperClass,
+      Class<V>  valueClass)
+  {
+    V value = null;
+    try {
+      value = JsonUtilities.jsonParse(text, valueClass);
+    } catch (Exception e) {
+      if (String.class.equals(valueClass)) {
+        // use the text value directly
+        value = (V) text;
+      } else {
+        if (e instanceof RuntimeException) throw (RuntimeException) e;
+        throw new RuntimeException(e);
+      }
+    }
+    try {
+      W wrapper = wrapperClass.getDeclaredConstructor().newInstance();
+      wrapper.set(value);
+      return wrapper;
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * An abstract {@link JsonDeserializer} implementation to handle
+   * deserializing the JSON as one of the sub-classes.
+   *
+   */
+  public static abstract class OneOfDeserializer<T extends OneOf>
+      extends JsonDeserializer<T>
+  {
+    /**
+     * The wrapper base class to deserialize as.
+     */
+    private Class<T> wrapperBaseClass;
+
+    /**
+     * Constructs with the wrapper base class.
+     * @param wrapperBaseClass The wrapper base class this will deserialize.
+     */
+    protected OneOfDeserializer(Class<T> wrapperBaseClass) {
+      this.wrapperBaseClass = wrapperBaseClass;
+    }
+
+    /**
+     * Handles deserializing a sub-class of {@link OneOf} that is a
+     * wrapper base class implementation.
+     *
+     * @param parser The {@link JsonParser} to parse with.
+     * @param context The deserialization context.
+     *
+     * @return The instance of the {@link OneOf} sub-class for this instance.
+     *
+     * @throws IOException If an I/O failure occurs.
+     * @throws JsonProcessingException If a JSON processing failure occurs.
+     */
+    public T deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException, JsonProcessingException
+    {
+      ObjectMapper mapper = (ObjectMapper) parser.getCodec();
+      TreeNode root = mapper.readTree(parser);
+
+      Collection<Class<? extends T>> wrapperClasses = this.getWrapperClasses();
+
+      for (Class<? extends T> c : wrapperClasses) {
+        JsonParser wrapperParser = root.traverse(mapper);
+        try {
+          T wrapper = mapper.readValue(wrapperParser, c);
+
+          return wrapper;
+
+        } catch (Exception e) {
+          // ignore
+        }
+      }
+      throw new IOException(
+          "Failed to parse as any of the expected types (" + wrapperClasses
+              +"): " + root);
+    }
+
+    /**
+     * Implement this to return the concrete wrapper sub-classes of the
+     * one-of base class.
+     */
+    public abstract Collection<Class<? extends T>> getWrapperClasses();
+  }
+
+  /**
+   * Deserializer to parse a NameAsName as simply a Name object with no
+   * additional decoration.
+   */
+  protected static abstract class
+    WrapperDeserializer<V, W extends OneOf & Wrapper<V>>
+      extends JsonDeserializer<W>
+  {
+    /**
+     * The wrapper class.
+     */
+    private Class<W> wrapperClass;
+
+    /**
+     * The value class.
+     */
+    private Class<V> valueClass;
+
+    /**
+     * Constructs with the specified wrapper class and value class.
+     * @param wrapperClass The wrapper class.
+     * @param valueClass The value class.
+     */
+    protected WrapperDeserializer(Class<W> wrapperClass, Class<V> valueClass) {
+      this.wrapperClass = wrapperClass;
+      this.valueClass   = valueClass;
+    }
+
+    /**
+     * Implemented to construct a new instance of the wrapper class and
+     * parse the JSON as the value class and set the value on the wrapper class
+     * and return the wrapper instance.
+     * @param parser The {@link JsonParser} to parse with.
+     * @param context The deserialization context.
+     * @return The parsed object.
+     * @throws IOException
+     * @throws JsonProcessingException
+     */
+    @Override
+    public W deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException, JsonProcessingException
+    {
+      try {
+        W wrapper = this.wrapperClass.getConstructor().newInstance();
+        wrapper.set(context.readValue(parser, this.valueClass));
+        return wrapper;
+
+      } catch (RuntimeException|IOException e) {
+        throw e;
+
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+}
