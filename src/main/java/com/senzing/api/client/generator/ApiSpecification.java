@@ -350,7 +350,8 @@ public class ApiSpecification {
         else if (anyOfArray != null) specType = "anyOf";
         else if (ref != null) specType = "ref";
         else if ((schemaObj.size() == 0)
-            || ANY_TYPE_PROPS.containsAll(schemaObj.keySet())) {
+                 || ANY_TYPE_PROPS.containsAll(schemaObj.keySet()))
+        {
           // assume an empty object like "{ }" -- likely for
           // "additionalProperties" specification
           specType = "any";

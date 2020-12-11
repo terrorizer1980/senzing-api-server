@@ -15,9 +15,10 @@ public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
   public static final {{{type}}} DEFAULT_{{NAME}} = {{defaultValue}};
 
 {{/if}}{{/each}}  /**
-   * A reference to the service class that created this operation.
+   * A reference to the service instance that created this operation.
    */
-   private {{serviceClassName}}
+   private {{serviceClassName}} service;
+
 {{#each params}}  /**
    * {{description}}
    */

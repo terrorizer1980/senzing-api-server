@@ -48,12 +48,15 @@ public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
    *         <tt>false</tt>.
    */
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(Object obj) { {{#if extends}}
+    if (!super.equals(obj)) return false;
+{{else}}
     if (obj == null) return false;
     if (this == obj) return true;
     if (this.getClass() != obj.getClass()) return false;
+{{/if}}
     {{className}} that = ({{className}}) obj;
-{{#each props}}    if (!Objects.equal(this.get{{Name}}(), that.get{{Name}}())) return false;
+{{#each props}}    if (!Objects.equals(this.get{{Name}}(), that.get{{Name}}())) return false;
 {{/each}}    return true;
   }
 
@@ -64,10 +67,14 @@ public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
    * @return The hash code for this instance.
    */
   @Override
-  public int hashCode() {
-    return Objects.hash({{#each props}}{{#unless @first}}                        {{/unless}}this.get{{Name}}(){{#if @last}});{{else}},{{/if}}
-{{/each}}
-  }
+  public int hashCode() { {{#if extends}}
+    int hashCode = super.hashCode();
+    {{else}}
+    int hashCode = 0;
+    {{/if}}
+    return Objects.hash(hashCode{{#if props}},{{else}});{{/if}}
+{{#each props}}                        this.get{{Name}}(){{#if @last}});{{else}},{{/if}}
+{{/each}} }
 
   /**
    * Overridden to return a diagnostic {@link String} describing this instance.

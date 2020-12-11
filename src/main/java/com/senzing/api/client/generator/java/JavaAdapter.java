@@ -13,6 +13,54 @@ import java.util.*;
  */
 public class JavaAdapter extends AbstractLanguageAdapter {
   /**
+   * The native type info map key for getting the {@link ApiDataType} describing
+   * the type.
+   */
+  public static final String TYPE_KEY = "type";
+
+  /**
+   * The native type info map key for getting the type declaration including
+   * any parameter types.
+   */
+  public static final String TYPE_DECLARATION_KEY = "typeDeclaration";
+
+  /**
+   * The native type info map key for getting the type name (this will be sans
+   * the parameter types for type erasure purposes).
+   */
+  public static final String TYPE_NAME_KEY = "typeName";
+
+  /**
+   * The native type info map key for getting the type description in
+   * camel case.
+   */
+  public static final String TYPE_DESCRIPTION_KEY = "typeDescription";
+
+  /**
+   * The native type info map key for getting the type description in
+   * upper case.
+   */
+  public static final String TYPE_CONSTANT_KEY = "typeConstant";
+
+  /**
+   * The native type info map key for getting the list of classes used to
+   * define the type.
+   */
+  public static final String TYPE_PARAMS_KEY = "typeParameters";
+
+  /**
+   * The native type info map key for getting the camel case type description
+   * of the array element type when dealing with array types.
+   */
+  public static final String ITEM_DESCRIPTION_KEY = "itemDescription";
+
+  /**
+   * The native type info map key for getting the camel case type description
+   * of the map value element type when dealing with basic map types.
+   */
+  public static final String VALUE_DESCRIPTION_KEY = "valueDescription";
+
+  /**
    * The template file to use for generating services.
    */
   private static final String SERVICE_TEMPLATE = "Service.java.hbs";
@@ -48,12 +96,12 @@ public class JavaAdapter extends AbstractLanguageAdapter {
     map.put(BinaryDataType.class, Set.of(File.class, InputStream.class));
     map.put(BooleanDataType.class, Set.of(Boolean.class));
     map.put(DateDataType.class, Set.of(Date.class));
+    map.put(DateTimeDataType.class, Set.of(Date.class));
     map.put(DoubleDataType.class, Set.of(Double.class));
     map.put(FloatDataType.class, Set.of(Float.class));
     map.put(IntegerDataType.class, Set.of(Integer.class));
     map.put(LongDataType.class, Set.of(Long.class));
     map.put(StringDataType.class, Set.of(String.class));
-    map.put(ArrayDataType.class, Set.of(List.class));
 
     BASIC_TYPE_MAP = Collections.unmodifiableMap(map);
 
@@ -71,6 +119,7 @@ public class JavaAdapter extends AbstractLanguageAdapter {
         = new LinkedHashMap<>();
 
     importMap.put(DateDataType.class, Set.of("java.util.Date"));
+    importMap.put(DateTimeDataType.class, Set.of("java.util.Date"));
     importMap.put(BinaryDataType.class,
                   Set.of("java.io.File", "java.io.InputStream"));
 
@@ -183,7 +232,7 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   public String getModelSubPath(ApiDataType      dataType,
                                 ApiSpecification apiSpec)
   {
-    if (BASIC_TYPE_MAP.containsKey(dataType.getClass())) return null;
+    if (this.isBasicType(dataType, apiSpec)) return null;
     return this.modelPackage.replace('.', '/');
   }
 
@@ -219,6 +268,9 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   @Override
   public boolean isBasicType(ApiDataType dataType, ApiSpecification apiSpec) {
     // if (dataType.getName() != null) return false; -- not sure we need this
+    if (dataType instanceof ArrayDataType) {
+      return true;
+    }
     return (BASIC_TYPE_MAP.containsKey(dataType.getClass()));
   }
 
@@ -247,61 +299,143 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   }
 
   /**
-   * Returns the {@link Set} of Java type names for the specified {@link
-   * ApiDataType}.
+   * Returns the {@link Map} of Java type names to optional {@link Map} instances
+   * containing the additional type-specific info for that type name for
+   * the specified {@link ApiDataType}.
    */
   @Override
-  public Set<String> getNativeTypeNames(ApiDataType       dataType,
-                                        ApiSpecification  apiSpec) {
+  public Map<String, Map<String, Object>> getNativeTypeNames(
+      ApiDataType       dataType,
+      ApiSpecification  apiSpec)
+  {
     // first off we need to resolve the type
-    dataType = apiSpec.resolveDataType(dataType);
+    ApiDataType resolvedType = apiSpec.resolveDataType(dataType);
 
-    String fullTypeName = this.getTypeName(dataType, apiSpec);
-    if (fullTypeName != null) return Set.of(fullTypeName);
+    String typeName = this.getTypeName(resolvedType, apiSpec);
+    if (typeName != null) {
+      Map<String, Object> infoMap = new LinkedHashMap<>();
+      infoMap.put(TYPE_KEY, resolvedType);
+      infoMap.put(TYPE_NAME_KEY, typeName);
+      infoMap.put(TYPE_DECLARATION_KEY, typeName);
+      infoMap.put(TYPE_DESCRIPTION_KEY, stripPrefix(typeName));
+      infoMap.put(TYPE_CONSTANT_KEY, toConstantCase(stripPrefix(typeName)));
+      infoMap.put(TYPE_PARAMS_KEY, Collections.singletonList(typeName));
+      Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+      result.put(typeName, infoMap);
+      return result;
+    }
 
     // check if we have an array
-    if (dataType.getClass() == ArrayDataType.class) {
-      ApiDataType itemType = ((ArrayDataType) dataType).getItemType();
+    if (resolvedType.getClass() == ArrayDataType.class) {
+      ArrayDataType arrayDataType = (ArrayDataType) resolvedType;
+      ApiDataType itemType = arrayDataType.getItemType();
       itemType = apiSpec.resolveDataType(itemType);
 
-      Set<String> nativeItemTypes = this.getNativeTypeNames(itemType, apiSpec);
-      Set<String> result = new LinkedHashSet<>();
-      for (String nativeItemType: nativeItemTypes) {
-        result.add("List<" + nativeItemType + ">");
-      }
-      return Collections.unmodifiableSet(result);
+      Map<String, Map<String, Object>> nativeItemTypes
+          = this.getNativeTypeNames(itemType, apiSpec);
+
+      Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+
+      nativeItemTypes.forEach((nativeItemType,  itemInfoMap) -> {
+        List<String> itemTypeParams
+            = (List<String>) itemInfoMap.get(TYPE_PARAMS_KEY);
+        String itemTypeDesc = (String) itemInfoMap.get(TYPE_DESCRIPTION_KEY);
+
+        List<String> typeParams = new ArrayList<>(itemTypeParams.size()+1);
+
+        String collectionType = (arrayDataType.isUnique()) ? "Set" : "List";
+
+        typeParams.add(collectionType);
+        typeParams.addAll(itemTypeParams);
+        Map<String, Object> infoMap = new LinkedHashMap<>();
+        String typeDesc = collectionType + "Of" + stripPrefix(itemTypeDesc);
+        String typeDeclaration = collectionType + "<" + nativeItemType + ">";
+        infoMap.put(TYPE_KEY, resolvedType);
+        infoMap.put(TYPE_NAME_KEY, collectionType);
+        infoMap.put(TYPE_DECLARATION_KEY, typeDeclaration);
+        infoMap.put(TYPE_DESCRIPTION_KEY, stripPrefix(typeDesc));
+        infoMap.put(TYPE_CONSTANT_KEY, toConstantCase(stripPrefix(typeDesc)));
+        infoMap.put(TYPE_PARAMS_KEY, typeParams);
+        infoMap.put(ITEM_DESCRIPTION_KEY, itemTypeDesc);
+        result.put(typeDeclaration, infoMap);
+      });
+
+      return result;
     }
 
     // check if we have a basic map
-    if (dataType.getClass() == ObjectDataType.class) {
-      ObjectDataType objDataType = (ObjectDataType) dataType;
+    if (resolvedType.getClass() == ObjectDataType.class) {
+      ObjectDataType objDataType = (ObjectDataType) resolvedType;
       if (objDataType.getProperties().size() == 0) {
         ApiDataType addlPropsType = objDataType.getAdditionalProperties();
-        if (addlPropsType == null) return Set.of("Map<String, ?>");
+        if (addlPropsType == null) {
+          Map<String, Object> infoMap = new LinkedHashMap<>();
+          String typeDeclaration = "Object";
+          infoMap.put(TYPE_KEY, resolvedType);
+          infoMap.put(TYPE_DECLARATION_KEY, typeDeclaration);
+          infoMap.put(TYPE_NAME_KEY, typeDeclaration);
+          infoMap.put(TYPE_DESCRIPTION_KEY, typeDeclaration);
+          infoMap.put(TYPE_CONSTANT_KEY, toConstantCase(typeDeclaration));
+          infoMap.put(TYPE_PARAMS_KEY, List.of(typeDeclaration));
+          Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+          result.put(typeDeclaration, infoMap);
+          return result;
+        }
         addlPropsType = apiSpec.resolveDataType(addlPropsType);
 
-        Set<String> valueTypes = this.getNativeTypeNames(addlPropsType,
-                                                         apiSpec);
-        Set<String> result = new LinkedHashSet<>();
-        for (String valueType: valueTypes) {
-          result.add("Map<String, " + valueType + ">");
-        }
-        return Collections.unmodifiableSet(result);
+        Map<String, Map<String, Object>> valueTypes
+            = this.getNativeTypeNames(addlPropsType, apiSpec);
+
+        Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+        valueTypes.forEach((valueType, valueInfoMap) -> {
+          List<String> valueTypeParams
+              = (List<String>) valueInfoMap.get(TYPE_PARAMS_KEY);
+
+          String valueTypeDesc
+              = (String) valueInfoMap.get(TYPE_DESCRIPTION_KEY);
+
+          List<String> typeParams = new ArrayList<>(valueTypeParams.size()+1);
+
+          typeParams.add("Map");
+          typeParams.add("String");
+          typeParams.addAll(valueTypeParams);
+          Map<String, Object> infoMap = new LinkedHashMap<>();
+          String typeDesc = "MapOf" + stripPrefix(valueTypeDesc);
+          String typeDeclaration = "Map<String, " + valueType + ">";
+          infoMap.put(TYPE_KEY, resolvedType);
+          infoMap.put(TYPE_DECLARATION_KEY, typeDeclaration);
+          infoMap.put(TYPE_NAME_KEY, "Map");
+          infoMap.put(TYPE_DESCRIPTION_KEY, stripPrefix(typeDesc));
+          infoMap.put(TYPE_CONSTANT_KEY, toConstantCase(stripPrefix(typeDesc)));
+          infoMap.put(TYPE_PARAMS_KEY, typeParams);
+          infoMap.put(VALUE_DESCRIPTION_KEY, valueTypeDesc);
+
+          result.put(typeDeclaration, infoMap);
+        });
+        return result;
       }
     }
 
-    // get the types from the basic map
-    Set<Class> basicClasses = BASIC_TYPE_MAP.get(dataType.getClass());
+    // get the types from the basic type map
+    Set<Class> basicClasses = BASIC_TYPE_MAP.get(resolvedType.getClass());
     if (basicClasses != null) {
-      Set<String> result = new LinkedHashSet<>();
+      Map<String, Map<String, Object>> result = new LinkedHashMap<>();
       for (Class c : basicClasses) {
-        result.add(c.getSimpleName());
+        Map<String, Object> infoMap = new LinkedHashMap<>();
+        String typeDesc = c.getSimpleName();
+        infoMap.put(TYPE_KEY, resolvedType);
+        infoMap.put(TYPE_DECLARATION_KEY, typeDesc);
+        infoMap.put(TYPE_NAME_KEY, typeDesc);
+        infoMap.put(TYPE_DESCRIPTION_KEY, stripPrefix(typeDesc));
+        infoMap.put(TYPE_CONSTANT_KEY, toConstantCase(stripPrefix(typeDesc)));
+        infoMap.put(TYPE_PARAMS_KEY, Collections.singletonList(typeDesc));
+        result.put(typeDesc, infoMap);
       }
-      return Collections.unmodifiableSet(result);
+      return result;
     }
 
     throw new IllegalStateException(
-        "Unable to determine native types for ApiDataType: " + dataType);
+        "Unable to determine native types for ApiDataType: " + resolvedType);
   }
 
   /**
@@ -378,7 +512,6 @@ public class JavaAdapter extends AbstractLanguageAdapter {
                                      ApiSpecification apiSpec)
   {
     dataType = apiSpec.resolveDataType(dataType);
-
     // check if we have a basic type
     if (BASIC_TYPE_MAP.containsKey(dataType.getClass())) {
       Set<String> deps = BASIC_IMPORT_MAP.get(dataType.getClass());
@@ -494,5 +627,35 @@ public class JavaAdapter extends AbstractLanguageAdapter {
       if (imported.startsWith("static ")) importSet.add(imported);
     }
     return importSet;
+  }
+
+  /**
+   *
+   */
+  private static String toConstantCase(String text) {
+    StringBuilder sb = new StringBuilder();
+    boolean prevLower = false;
+    for (char c: text.toCharArray()) {
+      boolean upper = Character.isUpperCase(c);
+      if (upper && prevLower) sb.append("_");
+      sb.append(Character.toUpperCase(c));
+      prevLower = (!upper);
+    }
+    return sb.toString();
+  }
+
+  /**
+   *
+   */
+  private static String stripPrefix(String text) {
+    if (text == null) return null;
+    if (text.length() < 3) return text;
+    if (text.length() > 3 && text.startsWith("SZ_")) {
+      return text.substring(3);
+    }
+    if (text.length() > 2 && (text.startsWith("Sz") || text.startsWith("SZ"))) {
+      return text.substring(2);
+    }
+    return text;
   }
 }

@@ -68,7 +68,9 @@ public class OneOfHandler extends HandlebarsModelTypeHandler {
 
     // get the component types
     List<ApiDataType> componentTypes = oneOfDataType.getTypes();
-    List<String> compTypeNames = new ArrayList<>(componentTypes.size());
+    List<Map<String, Object>> compTypeInfoList
+        = new ArrayList<>(componentTypes.size());
+    List<Map<String, Object>> convTypeInfoList = new LinkedList<>();
 
     // loop through the component types
     for (ApiDataType compType : componentTypes) {
@@ -76,7 +78,57 @@ public class OneOfHandler extends HandlebarsModelTypeHandler {
       imports.addAll(langAdapter.getDependencies(compType, apiSpec));
 
       // get the native type names
-      compTypeNames.addAll(langAdapter.getNativeTypeNames(compType, apiSpec));
+      Map<String, Map<String, Object>> nativeTypes
+          = langAdapter.getNativeTypeNames(compType, apiSpec);
+
+      Collection<Map<String, Object>> infoMaps = nativeTypes.values();
+
+      // check if the component type is a collection of one-of instances
+      if (compType instanceof ArrayDataType) {
+        ArrayDataType arrayDataType = (ArrayDataType) compType;
+        ApiDataType itemType = arrayDataType.getItemType();
+        itemType = apiSpec.resolveDataType(itemType);
+
+        if (itemType instanceof OneOfDataType) {
+          OneOfDataType oneOfItemType = (OneOfDataType) itemType;
+
+          String convName = langAdapter.getTypeName(oneOfItemType, apiSpec);
+
+          List<ApiDataType> subTypes = oneOfItemType.getTypes();
+
+          List<Map<String, Object>> convenienceTypes
+              = new ArrayList<>(subTypes.size());
+
+          for (ApiDataType subType: subTypes) {
+            ArrayDataType subArrayType = new ArrayDataType();
+            subArrayType.setItemType(subType);
+            subArrayType.setDescription(arrayDataType.getDescription());
+            subArrayType.setMaximumItems(arrayDataType.getMaximumItems());
+            subArrayType.setMinimumItems(arrayDataType.getMinimumItems());
+            subArrayType.setUniqueItems(arrayDataType.isUnique());
+            subArrayType.setNullable(arrayDataType.isNullable());
+
+            // add the imports for the sub array type
+            imports.addAll(langAdapter.getDependencies(subArrayType, apiSpec));
+
+            // get the associated native types
+            Map<String, Map<String, Object>> nativeSubTypes
+                = langAdapter.getNativeTypeNames(subArrayType, apiSpec);
+
+            // add to the convenience types
+            convenienceTypes.addAll(nativeSubTypes.values());
+          }
+
+          // add all the convenience types to the info maps
+          for (Map<String, Object> infoMap: infoMaps) {
+            infoMap.put("convenienceTypes", convenienceTypes);
+            infoMap.put("convenienceName", convName);
+          }
+        }
+      }
+
+      // add the info maps
+      compTypeInfoList.addAll(infoMaps);
     }
 
     // sort the imports for cosmetic reasons
@@ -90,7 +142,7 @@ public class OneOfHandler extends HandlebarsModelTypeHandler {
     String name = langAdapter.getTypeName(dataType, apiSpec);
 
     paramMap.put("imports", imports);
-    paramMap.put("componentTypes", compTypeNames);
+    paramMap.put("componentTypes", compTypeInfoList);
     paramMap.put("className", name);
     paramMap.put("packageName", pkg);
     paramMap.put("fullClassName", pkg + "." + name);

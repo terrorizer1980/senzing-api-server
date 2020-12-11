@@ -16,8 +16,12 @@ public class SzApiClientGenerator {
    */
   public static void main(String[] args) {
     try {
-      if (args.length != 2) {
+      if (args.length < 1) {
         System.err.println("Must specify the YAML OpenAPI Specification file");
+        System.exit(1);
+      }
+      if (args.length < 2) {
+        System.err.println("Must specify the client output directory");
         System.exit(1);
       }
       File file = new File(args[0]);

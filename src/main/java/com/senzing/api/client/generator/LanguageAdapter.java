@@ -3,6 +3,7 @@ package com.senzing.api.client.generator;
 import com.senzing.api.client.generator.schema.ApiDataType;
 
 import java.io.File;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -120,11 +121,14 @@ public interface LanguageAdapter {
    * @param apiSpec The {@link ApiSpecification} that the specified {@link
    *                ApiDataType} is associated with.
    *
-   * @return The {@link Set} of native type names that represent the specified
-   *         {@link ApiDataType}.
+   * @return The {@link Map} of native type name keys that represent the
+   *         specified {@link ApiDataType} to {@link Map} values that
+   *         represent the language-specific additional information for that
+   *         type.
    */
-  Set<String> getNativeTypeNames(ApiDataType      dataType,
-                                 ApiSpecification apiSpec);
+  Map<String, Map<String,Object>> getNativeTypeNames(
+      ApiDataType      dataType,
+      ApiSpecification apiSpec);
 
   /**
    * Returns the native-language representation of the initial value for the

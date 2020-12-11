@@ -3,6 +3,8 @@ package {{packageName}};
 import java.util.*;
 import {{packageName}}.support.OneOf;
 import {{packageName}}.support.Wrapper;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 {{#each imports}}import {{.}};
 {{/each}}
@@ -14,13 +16,21 @@ public abstract class {{className}} extends OneOf {
   /**
    * The {@link Map} of value class keys to wrapper {@link Class} values.
    */
-  private static final Map<Class, Class<? extends {{className}}>>
+  private static final Map<JavaType, Class<? extends {{className}}>>
     WRAPPER_CLASS_MAP;
-
+{{#each componentTypes}}
+  /**
+   * The {@link JavaType} representing an instance of {@link {{{typeDeclaration}}}{{#with . ~}} } {{~/with}}.
+   */
+  private static final JavaType {{typeConstant}}_TYPE
+    = OneOf.createJavaType({{#each typeParameters}}{{#unless @first}},
+                           {{/unless}}{{.}}.class{{/each}});
+{{/each}}
   static {
-    Map<Class, Class<? extends {{className}}>> map = new LinkedHashMap<>();
+    Map<JavaType, Class<? extends {{className}}>> map
+        = new LinkedHashMap<>();
 
-{{#each componentTypes}}    map.put({{{.}}}.class, As{{{.}}}.class);
+{{#each componentTypes}}    map.put({{typeConstant}}_TYPE, As{{typeDescription}}.class);
 {{/each}}
     WRAPPER_CLASS_MAP = Collections.unmodifiableMap(map);
   }
@@ -29,16 +39,16 @@ public abstract class {{className}} extends OneOf {
    * Constructs with the actual class of the value held by this instance.
    * @param actual The actual class of the value held by this instance.
    */
-  private {{className}}(Class<?> actual) {
+  private {{className}}(JavaType actual) {
     super(actual);
   }
 
   /**
    * Parses the specified text as one of the possible types and returns it in
-   * a {@link {{className}}\} wrapper class.
+   * a {@link {{className}} } wrapper class.
    *
    * @param text The text to parse.
-   * @return The parsed instance of {@link {{className}}\}.
+   * @return The parsed instance of {@link {{className}} }.
    */
   public static {{className}} valueOf(String text) {
     return oneOfValueOf(
@@ -47,24 +57,51 @@ public abstract class {{className}} extends OneOf {
 {{#each componentTypes}}
   /**
    * Creates a new instance of this class whose value is the specified
-   * {@link {{.}}\} instance.  This method returns <tt>null</tt> if the
-   * specified value is <tt>null</tt>.
+   * {@link {{{typeDeclaration}}}{{#with . ~}} } {{~/with}} instance.  This method returns
+   * <tt>null</tt> if the specified value is <tt>null</tt>.
    *
    * @param value The value for this instance.
-   * @return The new instance of {@link As{{.}}\} with the specified non-null
-   *         value or <tt>null</tt> if the specified value is <tt>null</tt>.
+   *
+   * @return The new instance of {@link As{{typeDescription}} } with the
+   *         specified non-null value or <tt>null</tt> if the specified
+   *         value is <tt>null</tt>.
    */
-  public static {{className}}.As{{{.}}} from({{{.}}} value) {
+  public static {{className}}.As{{{typeDescription}}} from{{typeDescription}}({{{typeDeclaration}}} value) {
     if (value == null) return null;
-    As{{.}} wrapper = new As{{.}}();
+    As{{typeDescription}} wrapper = new As{{typeDescription}}();
     wrapper.set(value);
     return wrapper;
   }
 {{/each}}
+{{#each componentTypes}}{{#if convenienceTypes}}{{#each convenienceTypes}}
+   /**
+    * Creates a new instance of this class whose value is the
+    * {@link {{{../typeDeclaration}}}{{#with . ~}} } {{~/with}} instance created
+    * using the specified {@link {{{typeDeclaration}}}{{#with . ~}} } {{~/with}} instance.
+    * This method returns <tt>null</tt> if the specified value is <tt>null</tt>.
+    *
+    * @param values The values for this instance.
+    *
+    * @return The new instance of {@link As{{typeDescription}} } with the
+    *         specified non-null value or <tt>null</tt> if the specified
+    *         value is <tt>null</tt>.
+    */
+  public static {{className}}.As{{{../typeDescription}}} from{{typeDescription}}({{{typeDeclaration}}} values) {
+    if (values == null) return null;
+    {{#if type.unique}}
+    Set<{{convenienceName}}> oneOfValues = new LinkedHashSet<>();
+    {{else}}
+    List<{{convenienceName}}> oneOfValues = new ArrayList<>(values.size());
+    {{/if}}
+    // convert to the one-of type
+    values.forEach(e -> oneOfValues.add({{convenienceName}}.from{{itemDescription}}(e)));
 
+    return {{className}}.from{{../typeDescription}}(oneOfValues);
+  }
+{{/each}}{{/if}}{{/each}}
   /**
    * Provides a {@link OneOfDeserializer} implementation for the
-   * {@link {{className}}\} class.
+   * {@link {{className}} } class.
    */
   public static class Deserializer extends OneOfDeserializer<{{className}}>
   {
@@ -78,23 +115,23 @@ public abstract class {{className}} extends OneOf {
   }
 {{#each componentTypes}}
   /**
-   * Extends {@link {{className}}\} to represent the value as a
-   * {@llink {{.}}\}.
+   * Extends {@link {{className}} } to represent the value as a
+   * {@llink {{{typeDeclaration}}}{{#with . ~}} } {{~/with}}.
    */
-  @JsonDeserialize(using = As{{.}}.Deserializer.class)
-  public static class As{{.}} extends {{className}}
-      implements Wrapper<{{.}}>
+  @JsonDeserialize(using = As{{typeDescription}}.Deserializer.class)
+  public static class As{{typeDescription}} extends {{className}}
+      implements Wrapper<{{{typeDeclaration}}}>
   {
     /**
      * The underlying value.
      */
-    private {{.}} value;
+    private {{{typeDeclaration}}} value;
 
     /**
      * Default constructor.
      */
-    public As{{.}}() {
-      super({{.}}.class);
+    public As{{typeDescription}}() {
+      super({{typeConstant}}_TYPE);
       this.value = null;
     }
 
@@ -115,46 +152,48 @@ public abstract class {{className}} extends OneOf {
      * @param value The underlying value as an {@link Object}.
      *
      * @throws ClassCastException If the specified value is not an instance of
-     *                            {@link {{.}}\}.
+     *                            {@link {{{typeDeclaration}}}{{#with . ~}} } {{~/with}}.
      */
     public final void setValue(Object value) throws ClassCastException {
-      this.set(({{.}}) value);
+      this.set(({{{typeDeclaration}}}) value);
     }
 
     /**
      * Gets the underlying value.
      * @return The underlying value.
      */
-    public {{.}} get() { return this.value; }
+    public {{{typeDeclaration}}} get() { return this.value; }
 
     /**
      * Sets the underlying value.
      * @param value The underlying value.
      */
-    public void set({{.}} value) {
+    public void set({{{typeDeclaration}}} value) {
       this.value = value;
     }
 
     /**
-     * Deserializer to parse an <tt>As{{.}}</tt> as simply a <tt>{{.}}</tt>
-     * object with no additional decoration.
+     * Deserializer to parse an <tt>As{{typeDescription}}</tt> as
+     * simply a <tt>{{{typeDeclaration}}}</tt> object with no
+     * additional decoration.
      */
     public static class Deserializer
-        extends WrapperDeserializer<{{.}}, As{{.}}>
+        extends WrapperDeserializer<As{{typeDescription}}>
     {
       public Deserializer() {
-        super(As{{.}}.class, {{.}}.class);
+        super(As{{typeDescription}}.class, {{typeConstant}}_TYPE);
       }
     }
 
     /**
-     * Creates a new {@link {{className}}.As{{.}}\} instance by parsing the
-     * specified text.
+     * Creates a new {@link {{className}}.As{{typeDescription}} } instance
+     * by parsing the specified text.
+     *
      * @param text The text to parse as an instance of this class.
      * @return A new instance of this class parsed from the specified text.
      */
-    public static As{{.}} valueOf(String text) {
-      return OneOf.wrapperValueOf(text, As{{.}}.class, {{.}}.class);
+    public static As{{typeDescription}} valueOf(String text) {
+      return OneOf.wrapperValueOf(text, As{{typeDescription}}.class, {{typeConstant}}_TYPE);
     }
   }
 {{/each}}

@@ -7,6 +7,19 @@ import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.CollectionType;
+import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import static com.fasterxml.jackson.core.JsonToken.*;
 
 import java.io.IOException;
 import java.util.*;
@@ -17,9 +30,96 @@ import java.util.*;
  */
 public abstract class OneOf {
   /**
+   * An empty class array to use.
+   */
+  private static final Class[] EMPTY_CLASS_ARRAY = {};
+
+  /**
+   * The {@link TypeFactory} to use.
+   */
+  private static final TypeFactory TYPE_FACTORY = TypeFactory.defaultInstance();
+
+  /**
+   * The {@link JavaType} for the {@link String} class.
+   */
+  private static final JavaType STRING_TYPE
+      = TYPE_FACTORY.constructType(String.class);
+
+  /**
+   * The {@link ObjectMapper} to use for JSON deserialization.
+   */
+  private static ObjectMapper MAPPER = null;
+
+  /**
+   * Internal method to get the {@link ObjectMapper} and initialize it if not
+   * already initialized.
+   */
+  private static synchronized ObjectMapper getMapper() {
+    if (MAPPER == null) {
+      SimpleModule module = new SimpleModule();
+      module.addDeserializer(String.class, new StringDeserializer());
+      MAPPER = new ObjectMapper();
+      MAPPER.registerModule(new JodaModule());
+      MAPPER.registerModule(module);
+      MAPPER.configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false);
+    }
+    return MAPPER;
+  }
+
+  /**
+   * Parses the specified JSON text as the specified target class using the
+   * configured JSON parsing engine.
+   *
+   * @param jsonText The JSON text to parse.
+   * @param targetClass The target class to parse to.
+   * @return The parsed object.
+   * @throws IllegalArgumentException If the specified text cannot be parsed as
+   *                                  the specified type;
+   */
+  protected static <T> T jsonParse(String    jsonText,
+                                   Class<T>  targetClass)
+      throws IllegalArgumentException
+  {
+    TypeFactory typeFactory = TypeFactory.defaultInstance();
+    JavaType javaType = typeFactory.constructType(targetClass);
+    return jsonParse(jsonText, javaType, targetClass);
+  }
+
+  /**
+   * Parses the specified JSON text as the specified target class using the
+   * configured JSON parsing engine.
+   *
+   * @param jsonText The JSON text to parse.
+   * @param targetClass The target class to parse to.
+   * @return The parsed object.
+   * @throws IllegalArgumentException If the specified text cannot be parsed as
+   *                                  the specified type;
+   */
+  protected static <T> T jsonParse(String    jsonText,
+                                   JavaType  javaType,
+                                   Class<T>  targetClass)
+      throws IllegalArgumentException
+  {
+    if (!javaType.isTypeOrSuperTypeOf(targetClass)) {
+      throw new IllegalArgumentException(
+          "Java type (" + javaType + ") does not match target class: "
+          + targetClass);
+    }
+    try {
+      ObjectMapper mapper = getMapper();
+      return (T) mapper.readValue(jsonText, javaType);
+
+    } catch (IllegalArgumentException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IllegalArgumentException(e);
+    }
+  }
+
+  /**
    * The actual class of the object being wrapped by this instance.
    */
-  private Class<?> actual;
+  private JavaType actual;
 
   /**
    * Constructs with the actual class of the object being wrapped by this
@@ -27,7 +127,7 @@ public abstract class OneOf {
    * @param actual The actual class of the object being wrapped by this
    *               instance.
    */
-  protected OneOf(Class<?> actual) {
+  protected OneOf(JavaType actual) {
     this.actual = actual;
   }
 
@@ -51,44 +151,271 @@ public abstract class OneOf {
    * Returns the type of values that can be wrapped by this instance.
    * @return The type of values that can be wrapped by this instance.
    */
-  public final Class<?> getValueType() {
+  public final JavaType getValueType() {
    return this.actual;
   }
 
   /**
-   * Checks if this instance holds an instance of the specified {@link Class}.
-   * @param c The {@link Class} to check if the value is an instance of, or
-   *          <tt>null</tt> if checking if the value is <tt>null</tt>.
+   * Creates a {@link JavaType} instance from the specified one or more
+   * classes.  This does not work with any parameterized Java class, but does
+   * work with basic objects, parameterized maps and parameterized collections.
+   *
+   * @param mainClass The main class used to define the type.
+   *
+   * @param classes The additional classes used to define parameterized
+   *                types contained by maps or collections if the first class
+   *                is assignable from {@link Map} or {@link Collection}.
+   */
+  public static JavaType createJavaType(Class mainClass, Class... classes)
+  {
+    // check the main class
+    if (mainClass == null) {
+      throw new NullPointerException(
+          "The specified main class cannot be null.");
+    }
+
+    // check if the classes array is null
+    if (classes == null) classes = EMPTY_CLASS_ARRAY;
+
+    // check if any of the classes are null
+    for (Class c : classes) {
+      if (c == null) {
+        throw new NullPointerException(
+            "None of the specified classes can be null.");
+      }
+    }
+
+    // check if we only have one class for performance purposes
+    if (classes.length == 0) {
+      // cannot have a map
+      if (Map.class.isAssignableFrom(mainClass)) {
+        throw new IllegalArgumentException(
+            "Cannot specify a sub-class of Map without providing key and value "
+            + "types: " + mainClass.getName());
+      }
+      // cannot have a collection
+      if (Collection.class.isAssignableFrom(mainClass)) {
+        throw new IllegalArgumentException(
+            "Cannot specify a sub-class of Collection without providing value "
+                + "type: " + mainClass.getName());
+      }
+      // return a simple java type
+      return TYPE_FACTORY.constructType(mainClass);
+    }
+
+    // put the classes in a list
+    List<Class> classList = new LinkedList<Class>();
+    classList.add(mainClass);
+    for (Class c : classes) {
+      classList.add(c);
+    }
+
+    // interpret the java type
+    JavaType javaType = interpretJavaType(classList, mainClass, classes);
+
+    // check if all specified classes were used
+    if (classList.size() > 0) {
+      // check all those that were used
+      int usedCount = classes.length - classList.size();
+      List<Class> usedClasses = new ArrayList<>(usedCount);
+      for (int index = 0; index < usedCount; index++) {
+        usedClasses.add(classes[index]);
+      }
+      // throw an exception
+      throw new IllegalArgumentException(
+          "Some of the specified classes were not used.  used=[ "
+          + usedClasses + " ], unused=[ " + classList + " ]");
+    }
+
+    // return the java type
+    return javaType;
+  }
+
+  /**
+   * Interprets the java type for the specified {@link List}.
+   */
+  private static JavaType interpretJavaType(List<Class> classList,
+                                            Class       mainClass,
+                                            Class[]     classes)
+  {
+    // remove the first class
+    Class c = classList.remove(0);
+    if (Map.class.isAssignableFrom(c)) {
+      // check if we can get the key type
+      if (classList.size() == 0) {
+        List<Class> allClasses = new ArrayList<>(classes.length + 1);
+        allClasses.add(mainClass);
+        for (Class cls: classes) allClasses.add(cls);
+        throw new IllegalArgumentException(
+            "Class list exhausted.  Failed to obtain map key type: "
+                + "mapType=[ " + c + " ], classes=[ " + allClasses
+                + " ]");
+
+      }
+
+      // get the key type
+      JavaType keyType = interpretJavaType(classList, mainClass, classes);
+
+      // check if we can get the value type
+      if (classList.size() == 0) {
+        List<Class> allClasses = new ArrayList<>(classes.length + 1);
+        allClasses.add(mainClass);
+        for (Class cls: classes) allClasses.add(cls);
+        throw new IllegalArgumentException(
+            "Class list exhausted.  Failed to obtain map value type: "
+               + "mapType=[ " + c + " ], keyType=[ " + keyType
+                + " ], classes=[ " + allClasses + " ]");
+
+      }
+
+      // get the value type
+      JavaType valType = interpretJavaType(classList, mainClass, classes);
+
+      // construct the map type
+      return TYPE_FACTORY.constructMapType(c, keyType, valType);
+
+    } else if (Collection.class.isAssignableFrom(c)) {
+      // check if we can get the value type
+      if (classList.size() == 0) {
+        List<Class> allClasses = new ArrayList<>(classes.length + 1);
+        allClasses.add(mainClass);
+        for (Class cls: classes) allClasses.add(cls);
+        throw new IllegalArgumentException(
+            "Class list exhausted.  Failed to obtain collection value type: "
+                + "collectionType=[ " + c + " ], classes=[ " + allClasses
+                + " ]");
+
+      }
+
+      // get the value type
+      JavaType valType = interpretJavaType(classList, mainClass, classes);
+
+      // construct the collection type
+      return TYPE_FACTORY.constructCollectionType(c, valType);
+
+    } else {
+      return TYPE_FACTORY.constructType(c);
+    }
+  }
+
+  /**
+   * Checks if this instance holds an instance of the {@link JavaType}
+   * created via {@link #createJavaType(Class,Class[])} using the specified
+   * parameters.
+   *
+   * @param mainClass The main class used to define the type.
+   *
+   * @param classes The additional classes used to define parameterized
+   *                types contained by maps or collections if the first class
+   *                is assignable from {@link Map} or {@link Collection}.
+   *
    * @return <tt>true</tt> if the value is an instance of the specified
    *         {@link Class}, otherwise <tt>false</tt>.
    */
-  public final boolean is(Class<?> c) {
-    if (c == null) {
+  public final boolean is(Class mainClass, Class... classes) {
+    // check if the main class is null but additional classes exist
+    if (mainClass == null && classes.length == 0) {
+      throw new IllegalArgumentException(
+          "The first parameter can only be null if the additional class "
+          + "parameters are also null.  mainClass=[ " + mainClass
+          + " ], classes=[ " + Arrays.asList(classes) + " ]");
+    }
+
+    // check if the main class is null
+    if (mainClass == null) {
       return (this.getValue() == null);
     }
-    return (c.isAssignableFrom(this.actual));
+
+    // defer to the version that takes a java type
+    return this.is(createJavaType(mainClass, classes));
+  }
+
+  /**
+   * Checks if this instance holds an instance of the specified {@link
+   * JavaType}.
+   * @param javaType The {@link JavaType} to check if the value is an instance
+   *                 of, or <tt>null</tt> if checking if the value is
+   *                 <tt>null</tt>.
+   * @return <tt>true</tt> if the value is an instance of the specified
+   *         {@link Class}, otherwise <tt>false</tt>.
+   */
+  public final boolean is(JavaType javaType) {
+    // check if the specified java type is null
+    if (javaType == null) {
+      return (this.getValue() == null);
+    }
+
+    // check for equality
+    if (this.actual.equals(javaType)) return true;
+
+    // get the raw class and check assignability
+    Class c = javaType.getRawClass();
+    if (!c.isAssignableFrom(this.actual.getRawClass())) return false;
+
+    // check if the types are not the same JavaType classes
+    if (!this.actual.getClass().equals(javaType.getClass())) return false;
+
+    // check the collection type elements if a collection
+    if (javaType instanceof CollectionType) {
+      JavaType eType    = ((CollectionType) javaType).getContentType();
+      JavaType actualEType  = ((CollectionType) this.actual).getContentType();
+      return (eType.getRawClass().isAssignableFrom(actualEType.getRawClass()));
+    }
+
+    // check the key and value types if a map
+    if (javaType instanceof MapType) {
+      JavaType keyType        = ((MapType) javaType).getKeyType();
+      JavaType actualKeyType  = ((MapType) this.actual).getKeyType();
+      JavaType valType        = ((MapType) javaType).getContentType();
+      JavaType actualValType  = ((MapType) this.actual).getContentType();
+
+      Class keyClass        = keyType.getRawClass();
+      Class actualKeyClass  = actualKeyType.getRawClass();
+      Class valClass        = valType.getRawClass();
+      Class actualValClass  = actualValType.getRawClass();
+
+      return (keyClass.isAssignableFrom(actualKeyClass)
+              && valClass.isAssignableFrom(actualValClass));
+    }
+
+    // if we get here then return true
+    return true;
   }
 
   /**
    * Attempts to cast the underlying value to an instance of the specified
    * class and return as the specified type.
-   * @param c The {@link Class} to cast to.
+   *
+   * @param mainClass The main class used for determining the type.
+   *
+   * @param classes The classes used to define the parameterized types contained
+   *                by maps or collections if the first class is assignable
+   *                from {@link Map} or {@link Collection}.
+   *
    * @return The value cast to the specified type.
+   *
    * @throws NullPointerException If the specified {@link Class} is
    *                              <tt>null</tt>.
    * @throws IllegalArgumentException If the underlying value is not an instance
    *                                  of the specified {@link Class}
    */
-  public final <T> T as(Class<T> c)
+  public final <T> T as(Class<T> mainClass, Class... classes)
       throws NullPointerException, IllegalArgumentException
   {
-    Objects.requireNonNull(c, "The specified class cannot be null.");
-    if (!this.is(c)) {
+    if (mainClass == null) {
+      if (!this.is(null)) {
+
+      }
+    }
+
+    JavaType javaType = createJavaType(mainClass, classes);
+
+    if (!this.is(javaType)) {
       throw new IllegalArgumentException(
          "Value is an instance of "
-          + this.getValueType().getName()
-          + ", not " + c.getName());
+             + this.getValueType() + ", not " + javaType);
     }
+
     @SuppressWarnings("unchecked")
     T result = (T) this.getValue();
     return result;
@@ -140,37 +467,37 @@ public abstract class OneOf {
    *                        {@link Class} values.
    */
   protected static <W extends OneOf> W oneOfValueOf(
-      String                          text,
-      Class<W>                        oneOfClass,
-      Map<Class, Class<? extends W>>  wrapperClassMap)
+      String                            text,
+      Class<W>                          oneOfClass,
+      Map<JavaType, Class<? extends W>> wrapperClassMap)
   {
     // check if the specified text is null or is a JSON representation of a
     // null value and simply return null
     if (text == null || text.equals("null")) return null;
 
     // iterate over the value classes
-    for (Class<?> valueClass : wrapperClassMap.keySet()) {
+    for (JavaType valueType : wrapperClassMap.keySet()) {
       // parse the value
-      Optional parsed = parseValue(text, valueClass);
+      Optional parsed = parseValue(text, valueType, valueType.getRawClass());
 
       // check if it parsed successfully, if not then try the next value class
-      if (parsed.isEmpty()) continue;
+      if (!parsed.isPresent()) continue;
 
       // get the value
       Object value = parsed.get();
 
       // get the associated wrapper class
-      Class<? extends W> wrapperClass = wrapperClassMap.get(valueClass);
+      Class<? extends W> wrapperClass = wrapperClassMap.get(valueType);
 
       // wrap the value in the appropriate class
-      return wrap(wrapperClass, valueClass, value);
+      return wrap(wrapperClass, value);
     }
 
     // fall back to using the text directly if one-of String is possible and
     // all other attempts to parse as a different value failed
-    if (wrapperClassMap.containsKey(String.class)) {
-      Class<? extends W> wrapperClass = wrapperClassMap.get(String.class);
-      return wrap(wrapperClass, String.class, text);
+    if (wrapperClassMap.containsKey(STRING_TYPE)) {
+      Class<? extends W> wrapperClass = wrapperClassMap.get(STRING_TYPE);
+      return wrap(wrapperClass, text);
     }
 
     // if we get here then the text cannot be parsed as expected
@@ -188,11 +515,13 @@ public abstract class OneOf {
    * @param <T> The type to parse as and return.
    * @return The parsed object.
    */
-  protected static <T> Optional<T> parseValue(String text, Class<T> type)
+  protected static <T> Optional<T> parseValue(String    text,
+                                              JavaType  type,
+                                              Class<T>  targetClass)
   {
     try {
       // try to parse the object as JSON
-      T result = JsonUtilities.jsonParse(text, type);
+      T result = jsonParse(text, type, targetClass);
 
       // return the result
       return Optional.of(result);
@@ -207,7 +536,6 @@ public abstract class OneOf {
    * value class in an instance of the specified wrapper class.
    *
    * @param wrapperClass
-   * @param valueClass
    * @param value
    * @param <W>
    * @param <V>
@@ -215,7 +543,6 @@ public abstract class OneOf {
    */
   private static <W extends OneOf, V> W
       wrap(Class<? extends W> wrapperClass,
-           Class<? extends V> valueClass,
            V                  value)
   {
     try {
@@ -243,22 +570,22 @@ public abstract class OneOf {
    *
    * @param text The text to be parsed.
    * @param wrapperClass The concrete wrapper class being instantiated.
-   * @param valueClass The class of the value held by the wrapper class.
+   * @param valueType The class of the value held by the wrapper class.
    * @return The constructed {@link Wrapper} instance represented by the
    *         specified text.
    */
-  protected static <W extends OneOf & Wrapper<V>, V> W wrapperValueOf(
+  protected static <W extends OneOf> W wrapperValueOf(
       String    text,
       Class<W>  wrapperClass,
-      Class<V>  valueClass)
+      JavaType  valueType)
   {
-    V value = null;
+    Object value = null;
     try {
-      value = JsonUtilities.jsonParse(text, valueClass);
+      value = jsonParse(text, valueType, valueType.getRawClass());
     } catch (Exception e) {
-      if (String.class.equals(valueClass)) {
+      if (String.class.equals(valueType.getRawClass())) {
         // use the text value directly
-        value = (V) text;
+        value = (String) text;
       } else {
         if (e instanceof RuntimeException) throw (RuntimeException) e;
         throw new RuntimeException(e);
@@ -266,8 +593,9 @@ public abstract class OneOf {
     }
     try {
       W wrapper = wrapperClass.getDeclaredConstructor().newInstance();
-      wrapper.set(value);
+      wrapper.setValue(value);
       return wrapper;
+
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -343,8 +671,7 @@ public abstract class OneOf {
    * Deserializer to parse a NameAsName as simply a Name object with no
    * additional decoration.
    */
-  protected static abstract class
-    WrapperDeserializer<V, W extends OneOf & Wrapper<V>>
+  protected static abstract class WrapperDeserializer<W extends OneOf>
       extends JsonDeserializer<W>
   {
     /**
@@ -353,18 +680,18 @@ public abstract class OneOf {
     private Class<W> wrapperClass;
 
     /**
-     * The value class.
+     * The {@link JavaType} for the value.
      */
-    private Class<V> valueClass;
+    private JavaType valueType;
 
     /**
      * Constructs with the specified wrapper class and value class.
      * @param wrapperClass The wrapper class.
-     * @param valueClass The value class.
+     * @param valueType The value type.
      */
-    protected WrapperDeserializer(Class<W> wrapperClass, Class<V> valueClass) {
+    protected WrapperDeserializer(Class<W> wrapperClass, JavaType valueType) {
       this.wrapperClass = wrapperClass;
-      this.valueClass   = valueClass;
+      this.valueType = valueType;
     }
 
     /**
@@ -383,7 +710,7 @@ public abstract class OneOf {
     {
       try {
         W wrapper = this.wrapperClass.getConstructor().newInstance();
-        wrapper.set(context.readValue(parser, this.valueClass));
+        wrapper.setValue(context.readValue(parser, this.valueType));
         return wrapper;
 
       } catch (RuntimeException|IOException e) {
@@ -394,4 +721,20 @@ public abstract class OneOf {
       }
     }
   }
+
+  private static class StringDeserializer extends JsonDeserializer<String> {
+    @Override
+    public String deserialize(JsonParser parser, DeserializationContext context)
+      throws IOException
+    {
+      JsonToken token = parser.getCurrentToken();
+      if (token != VALUE_STRING) {
+        throw context.wrongTokenException(parser, String.class, VALUE_STRING,
+            "Expected a string, not: " + token);
+      }
+      return parser.getValueAsString();
+    }
+  }
+
 }
+
