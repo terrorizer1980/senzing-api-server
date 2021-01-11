@@ -1,7 +1,6 @@
 package com.senzing.api.client.generator.java;
 
 import com.senzing.api.client.generator.ApiSpecification;
-import com.senzing.api.client.generator.HandlebarsModelTypeHandler;
 import com.senzing.api.client.generator.LanguageAdapter;
 import com.senzing.api.client.generator.schema.ApiDataType;
 import com.senzing.api.client.generator.schema.EnumerationDataType;
@@ -10,7 +9,7 @@ import com.senzing.api.client.generator.schema.EnumerationDataType;
  * A handler that produces Java enumeration classes from
  * {@link EnumerationDataType} instances.
  */
-public class EnumerationHandler extends HandlebarsModelTypeHandler {
+public class EnumerationHandler extends JavaHandlebarsModelTypeHandler {
   /**
    * Default constructor.
    */

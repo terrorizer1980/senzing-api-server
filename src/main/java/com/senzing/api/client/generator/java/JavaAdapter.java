@@ -1,5 +1,6 @@
 package com.senzing.api.client.generator.java;
 
+import com.github.jknack.handlebars.Context;
 import com.senzing.api.client.generator.*;
 import com.senzing.api.client.generator.schema.*;
 import com.senzing.api.model.SzHttpMethod;
@@ -198,11 +199,85 @@ public class JavaAdapter extends AbstractLanguageAdapter {
     if (path == null) return null;
     File serviceDir = new File(this.baseDirectory, path);
     serviceDir.mkdirs();
-    tag = (tag.length() > 1)
-        ? tag.substring(0, 1) + tag.substring(1) : tag.toUpperCase();
-    String name = tag + "Services";
+    String name = tagToClassName(tag) + "Service";
     File sourceFile = new File(serviceDir, name + ".java");
     return sourceFile;
+  }
+
+  /**
+   * Converts a tag into a camel case representation.
+   *
+   * @param tag The tag to convert.
+   * @return The camel case representation of the tag.
+   */
+  protected static String tagToClassName(String tag) {
+    StringBuilder sb = new StringBuilder();
+    for (String token: tag.split("\\s+")) {
+      token = token.trim();
+      if (token.length() == 0) continue;
+      if (token.length() == 1) {
+        sb.append(token.toUpperCase());
+        continue;
+      }
+      sb.append(token.substring(0, 1).toUpperCase());
+      sb.append(token.substring(1));
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Creates the handlebars template context for generating the service.
+   *
+   * @param tag The tag for the service.
+   * @param apiSpec The associated {@link ApiSpecification}.
+   * @return The {@link Context} that was created.
+   */
+  @Override
+  protected Map<String, Object> createServiceTemplateContext(
+      String            tag,
+      ApiSpecification  apiSpec)
+  {
+    Map<String, Object> contextMap
+        = super.createServiceTemplateContext(tag, apiSpec);
+
+    String packageName = this.servicePackage.replace('/', '.');
+
+    String className   = tagToClassName(tag) + "Service";
+
+    contextMap.put("packageName", packageName);
+    contextMap.put("className", className);
+    contextMap.put("fullClassName", packageName + "." + className);
+
+    return contextMap;
+  }
+
+  /**
+   * Creates the handlebars template context for generating the operation.
+   *
+   * @param restOp The {@link RestOperation} to generate the code for.
+   * @param apiSpec The associated {@link ApiSpecification}.
+   * @return The {@link Map} representing the content for the {@link Context}.
+   */
+  protected Map<String, Object> createOperationTemplateContext(
+      RestOperation    restOp,
+      ApiSpecification apiSpec)
+  {
+    Map<String, Object> context
+        = super.createOperationTemplateContext(restOp, apiSpec);
+
+    // add Java-specific properties
+    String packageName = this.servicePackage.replace('/', '.');
+    String opId        = restOp.getOperationId().trim();
+    String className   = (opId.length() > 1)
+        ? opId.substring(0, 1).toUpperCase() + opId.substring(1)
+        : opId.toUpperCase();
+
+    context.put("packageName", packageName);
+    context.put("className", className);
+    context.put("fullClassName", packageName + "." + className);
+
+    // return the new context
+    return context;
   }
 
   /**
@@ -217,9 +292,10 @@ public class JavaAdapter extends AbstractLanguageAdapter {
     if (path == null) return null;
     File serviceDir = new File(this.baseDirectory, path);
     serviceDir.mkdirs();
-    String opId = restOp.getOperationId();
+    String opId = restOp.getOperationId().trim();
     String name = (opId.length() > 1)
-        ? opId.substring(0, 1) + opId.substring(1) : opId.toUpperCase();
+        ? opId.substring(0, 1).toUpperCase() + opId.substring(1)
+        : opId.toUpperCase();
     File sourceFile = new File(serviceDir, name + ".java");
     return sourceFile;
   }
@@ -505,6 +581,36 @@ public class JavaAdapter extends AbstractLanguageAdapter {
   }
 
   /**
+   * Gets the literal text for the default value of the specified query
+   * parameter.  This returns <tt>null</tt> if no default value.
+   *
+   * @param queryParam The {@link QueryParameter} to get the default value for.
+   * @param apiSpec The associated {@link ApiSpecification} for the query
+   *                parameter.
+   * @return The {@link String} value for the default literal value.
+   */
+  @Override
+  public String getNativeDefaultValue(QueryParameter    queryParam,
+                                      ApiSpecification  apiSpec)
+  {
+    String defaultValue = queryParam.getDefaultValue();
+    if (defaultValue == null) return null;
+    ApiDataType dataType        = queryParam.getDataType();
+    String      defaultLiteral  = defaultValue;
+    if (dataType instanceof EnumerationDataType) {
+      defaultLiteral = this.getTypeName(dataType, apiSpec)
+          + "." + defaultLiteral;
+    } else if (dataType instanceof StringDataType) {
+      defaultLiteral = "\"" + defaultLiteral + "\"";
+    } else if (dataType instanceof LongDataType) {
+      defaultLiteral = defaultLiteral + "L";
+    } else if (dataType instanceof FloatDataType) {
+      defaultLiteral = defaultLiteral + "f";
+    }
+    return defaultLiteral;
+  }
+
+  /**
    *
    */
   @Override
@@ -627,21 +733,6 @@ public class JavaAdapter extends AbstractLanguageAdapter {
       if (imported.startsWith("static ")) importSet.add(imported);
     }
     return importSet;
-  }
-
-  /**
-   *
-   */
-  private static String toConstantCase(String text) {
-    StringBuilder sb = new StringBuilder();
-    boolean prevLower = false;
-    for (char c: text.toCharArray()) {
-      boolean upper = Character.isUpperCase(c);
-      if (upper && prevLower) sb.append("_");
-      sb.append(Character.toUpperCase(c));
-      prevLower = (!upper);
-    }
-    return sb.toString();
   }
 
   /**

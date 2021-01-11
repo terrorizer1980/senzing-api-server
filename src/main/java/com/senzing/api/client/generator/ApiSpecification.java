@@ -10,7 +10,7 @@ import java.util.*;
 /**
  * Describes an API specification from OAS specification file.
  */
-public class ApiSpecification {
+public class ApiSpecification implements SpecConstruct {
   /**
    * The only allowed properties for an "any type" that might have additional
    * description or allow null values.
@@ -372,7 +372,7 @@ public class ApiSpecification {
           result = new AnyType();
           break;
         case "boolean":
-          result = BooleanDataType.parse(name, schemaObj);
+          result = BooleanDataType.parse(null, schemaObj);
           break;
         case "object":
           result = ObjectDataType.parse(name, schemaObj);
@@ -385,16 +385,16 @@ public class ApiSpecification {
           break;
         case "integer":
           if ("int64".equals(format)) {
-            result = LongDataType.parse(name, schemaObj);
+            result = LongDataType.parse(null, schemaObj);
           } else {
-            result = IntegerDataType.parse(name, schemaObj);
+            result = IntegerDataType.parse(null, schemaObj);
           }
           break;
         case "number":
           if ("float".equals(format)) {
-            result = FloatDataType.parse(name, schemaObj);
+            result = FloatDataType.parse(null, schemaObj);
           } else {
-            result = DoubleDataType.parse(name, schemaObj);
+            result = DoubleDataType.parse(null, schemaObj);
           }
           break;
         case "string":
@@ -412,7 +412,7 @@ public class ApiSpecification {
               result = BinaryDataType.parse(name, schemaObj);
               break;
             default:
-              result = StringDataType.parse(name, schemaObj);
+              result = StringDataType.parse(null, schemaObj);
           }
           break;
         case "allOf":

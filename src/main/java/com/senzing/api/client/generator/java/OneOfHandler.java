@@ -4,7 +4,6 @@ import com.github.jknack.handlebars.Context;
 import com.github.jknack.handlebars.Template;
 import com.github.jknack.handlebars.io.URLTemplateSource;
 import com.senzing.api.client.generator.ApiSpecification;
-import com.senzing.api.client.generator.HandlebarsModelTypeHandler;
 import com.senzing.api.client.generator.LanguageAdapter;
 import com.senzing.api.client.generator.schema.*;
 
@@ -19,7 +18,7 @@ import static com.senzing.io.IOUtilities.UTF_8;
 /**
  * A handler that produces one-of classes from {@link OneOfDataType} instances.
  */
-public class OneOfHandler extends HandlebarsModelTypeHandler {
+public class OneOfHandler extends JavaHandlebarsModelTypeHandler {
   /**
    * Tracks if the support files have been created for a given API spec.
    */
@@ -134,20 +133,13 @@ public class OneOfHandler extends HandlebarsModelTypeHandler {
     // sort the imports for cosmetic reasons
     imports = JavaAdapter.sortImports(imports);
 
-    // handle the
+    // handle the imports and component types
     Map<String, Object> paramMap = new LinkedHashMap<>();
-
-    String pkg = langAdapter.getModelSubPath(dataType, apiSpec)
-        .replace('/', '.');
-    String name = langAdapter.getTypeName(dataType, apiSpec);
 
     paramMap.put("imports", imports);
     paramMap.put("componentTypes", compTypeInfoList);
-    paramMap.put("className", name);
-    paramMap.put("packageName", pkg);
-    paramMap.put("fullClassName", pkg + "." + name);
 
-    return Context.newContext(dataType).combine(paramMap);
+    return Context.newContext(baseContext).combine(paramMap);
   }
 
   /**

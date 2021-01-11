@@ -11,7 +11,7 @@ import java.util.*;
 /**
  * Describes the request body for a {@link RestOperation}.
  */
-public class RequestBody {
+public class RequestBody implements SpecConstruct {
   /**
    * The description for the request body.
    */

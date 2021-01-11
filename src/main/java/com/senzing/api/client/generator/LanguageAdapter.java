@@ -146,6 +146,18 @@ public interface LanguageAdapter {
                                ApiSpecification apiSpec);
 
   /**
+   * Gets the literal text for the default value of the specified query
+   * parameter.  This returns <tt>null</tt> if no default value.
+   *
+   * @param queryParam The {@link QueryParameter} to get the default value for.
+   * @param apiSpec The associated {@link ApiSpecification} for the query
+   *                parameter.
+   * @return The {@link String} value for the default literal value.
+   */
+  String getNativeDefaultValue(QueryParameter    queryParam,
+                               ApiSpecification  apiSpec);
+
+  /**
    * Returns the sub-path where the model representation for the specified
    * {@link ApiDataType} will be generated.  It is likely that the returned
    * value will be the same for all data types.  This method returns

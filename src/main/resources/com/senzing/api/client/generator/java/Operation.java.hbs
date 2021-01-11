@@ -1,47 +1,42 @@
 package {{packageName}};
 
-import java.util.Objects;
 {{#each imports}}import {{.}};
 {{/each}}
+
 /**
- * {{description}}
+ *
  */
-public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
+public class {{className}} extends AbstractOperation {
 {{#each queryParams}}{{#if hasDefault}}  /**
    * The default value for the {{name}} parameter.
    *
-   * @see #{{name}}({{{type}}})
+   * @see #{{name}}({{{type.typeDeclaration}}})
    */
-  public static final {{{type}}} DEFAULT_{{NAME}} = {{defaultValue}};
+  public static final {{{type.typeDeclaration}}} DEFAULT_{{NAME}} = {{defaultLiteral}};
 
 {{/if}}{{/each}}  /**
    * A reference to the service instance that created this operation.
    */
-   private {{serviceClassName}} service;
+  private Service service;
 
-{{#each pathParams}}  /**
+{{#each params}}  /**
    * {{description}}
    */
-  private {{{type}}} {{name}} = {{initialValue}};
-
-{{/each}}{{#each queryParams}}  /**
-   * {{description}}
-   */
-  private {{{type}}} {{name}}  = {{#if hasDefault}}DEFAULT_{{NAME}}{{else}}{{initialValue}}{{/if}};
+  private {{{type.typeDeclaration}}} {{name}} = {{#if hasDefault}}DEFAULT_{{NAME}}{{else}}{{initialValue}}{{/if}};
 
 {{/each}}  /**
    * Default constructor.
    */
   public {{className}}() {
-{{#each params}}    this.{{name}} = {{#if hasDefault}}DEFAULT_{{NAME}}{{else}}{{initialValue}}{{/if}};
+{{#each params}}    this.{{name}} = {{#if hasDefault}}DEFAULT_{{NAME}}{{else}}{{{initialValue}}}{{/if}};
 {{/each}}  }
-{{#each props}}
+{{#each queryParams}}
   /**
    * Getter for {{name}}.  {{description}}
    *
    * @return The value of {{name}}.
    */
-  public {{{type}}} get{{Name}}() {
+  public {{{type.typeDeclaration}}} get{{Name}}() {
     return this.{{name}};
   }
 
@@ -50,7 +45,7 @@ public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
    *
    * @param value The value for {{name}}.
    */
-  public void set{{Name}}({{{type}}} value) {
+  public void set{{Name}}({{{type.typeDeclaration}}} value) {
     this.{{name}} = value;
   }
 
@@ -59,7 +54,7 @@ public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
    *
    * @param value The value for {{name}}.
    */
-  public {{../className}} {{name}}({{{type}}} value) {
+  public {{../className}} {{name}}({{{type.typeDeclaration}}} value) {
     this.set{{Name}}(value);
     return this;
   }
@@ -72,9 +67,9 @@ public class {{className}} {{#if extends}}extends {{extends}} {{/if}}{
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("{ ");
-{{#each props}}    sb.append("{{name}}=[ ").append(this.get{{Name}}()).append(" ]{{#unless @last}}, {{/unless}}");
-{{/each}}    sb.append(" }");
+    sb.append("(").append(this.getClass().getSimpleName()).append("{ ");
+{{#each params}}    sb.append("{{name}}=[ ").append(this.get{{Name}}()).append(" ]{{#unless @last}}, {{/unless}}");
+{{/each}}    sb.append(" })");
     return sb.toString();
   }
 }

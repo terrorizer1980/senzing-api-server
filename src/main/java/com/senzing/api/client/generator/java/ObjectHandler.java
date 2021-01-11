@@ -2,7 +2,6 @@ package com.senzing.api.client.generator.java;
 
 import com.github.jknack.handlebars.Context;
 import com.senzing.api.client.generator.ApiSpecification;
-import com.senzing.api.client.generator.HandlebarsModelTypeHandler;
 import com.senzing.api.client.generator.LanguageAdapter;
 import com.senzing.api.client.generator.schema.*;
 
@@ -11,7 +10,7 @@ import java.util.*;
 /**
  * A handler that produces Java classes from {@link ObjectDataType} instances.
  */
-public class ObjectHandler extends HandlebarsModelTypeHandler {
+public class ObjectHandler extends JavaHandlebarsModelTypeHandler {
   /**
    * Default constructor.
    */

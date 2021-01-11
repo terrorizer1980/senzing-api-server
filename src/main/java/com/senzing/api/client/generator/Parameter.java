@@ -13,7 +13,7 @@ import static java.lang.Boolean.TRUE;
 /**
  * Describes a parameter to a {@link RestOperation}.
  */
-public abstract class Parameter {
+public abstract class Parameter implements SpecConstruct {
   /**
    * The referance name for the parameter (if any).
    */
@@ -146,6 +146,17 @@ public abstract class Parameter {
    *                representation of this object.
    */
   public abstract void buildJson(JsonObjectBuilder builder);
+
+  /**
+   * Converts this object to a {@link JsonObject}.
+   *
+   * @return This object represented as a {@link JsonObject}.
+   */
+  public JsonObject toJson() {
+    JsonObjectBuilder builder = Json.createObjectBuilder();
+    this.buildJson(builder);
+    return builder.build();
+  }
 
   /**
    * Return a JSON {@link String} describing this instance.

@@ -72,7 +72,7 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
   /**
    * Sets up the template {@link Context} to use for populating the template.
    * The default implementation uses the specified {@link ApiDataType} as a
-   * basis and adds "className", "packageName" and "fullClassName".
+   * basis.
    *
    * @param dataType The {@link ApiDataType} to produce the enum class for.
    * @param apiSpec The {@link ApiSpecification} that the type belongs to.
@@ -82,17 +82,7 @@ public abstract class HandlebarsModelTypeHandler implements ModelTypeHandler {
                                           ApiSpecification  apiSpec,
                                           LanguageAdapter   langAdapter)
   {
-    Map<String, Object> paramMap = new LinkedHashMap<>();
-
-    String name = langAdapter.getTypeName(dataType, apiSpec);
-    String pkg  = langAdapter.getModelSubPath(dataType, apiSpec)
-        .replace('/','.');
-
-    paramMap.put("className", name);
-    paramMap.put("packageName", pkg);
-    paramMap.put("fullClassName", pkg + "." + name);
-
-    return Context.newContext(dataType).combine(paramMap);
+    return Context.newContext(dataType);
   }
 
   /**

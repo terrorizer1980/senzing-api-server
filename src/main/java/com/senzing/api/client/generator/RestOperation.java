@@ -11,7 +11,7 @@ import java.util.*;
 /**
  * Describes a REST operation found in the API specification.
  */
-public class RestOperation {
+public class RestOperation implements SpecConstruct {
   /**
    * The prefix root for ref parameters.
    */
@@ -353,6 +353,17 @@ public class RestOperation {
   }
 
   /**
+   * Converts this object to a {@link JsonObject}.
+   *
+   * @return This object represented as a {@link JsonObject}.
+   */
+  public JsonObject toJson() {
+    JsonObjectBuilder builder = Json.createObjectBuilder();
+    this.buildJson(builder);
+    return builder.build();
+  }
+
+  /**
    * Builds the JSON representation for this object.
    *
    * @param builder The {@link JsonObjectBuilder} for creating the JSON
@@ -483,7 +494,7 @@ public class RestOperation {
       restOp.setPath(path);
       if (jsonArr != null) {
         for (JsonString tag : jsonArr.getValuesAs(JsonString.class)) {
-          restOp.addTag(tag.getString());
+          restOp.addTag(tag.getString().trim());
         }
       }
       if (summary != null && summary.trim().length() > 0) {

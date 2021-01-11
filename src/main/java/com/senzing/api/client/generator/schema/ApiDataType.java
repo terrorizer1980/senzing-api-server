@@ -1,6 +1,7 @@
 package com.senzing.api.client.generator.schema;
 
 import com.senzing.api.client.generator.ApiSpecification;
+import com.senzing.api.client.generator.SpecConstruct;
 import com.senzing.util.JsonUtils;
 
 import javax.json.Json;
@@ -10,7 +11,7 @@ import java.util.Objects;
 /**
  * Abstract base class for named and un-named data types.
  */
-public abstract class ApiDataType {
+public abstract class ApiDataType implements SpecConstruct {
   /**
    * The optional name associated with the type.
    */
